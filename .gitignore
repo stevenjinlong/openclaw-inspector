@@ -1,0 +1,6 @@
+web/node_modules
+web/.next
+web/out
+web/.turbo
+web/.env*
+.DS_Store
