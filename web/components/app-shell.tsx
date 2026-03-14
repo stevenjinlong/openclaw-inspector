@@ -28,12 +28,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        <div className="sidebar-card">
-          <p className="eyebrow">Mode</p>
-          <strong>Planning / Mock data</strong>
+        <div className="sidebar-card stack">
+          <div>
+            <p className="eyebrow">Mode</p>
+            <strong>Local mock adapter</strong>
+          </div>
           <p className="muted">
-            Next step: replace mock sessions with Gateway or CLI-backed adapter data.
+            The app now exposes read-only route handlers and normalized adapter
+            responses. The backing data is still stubbed on purpose.
           </p>
+          <div className="badge-row">
+            <span className="badge">GET /api/health</span>
+            <span className="badge">GET /api/sessions</span>
+            <span className="badge warn">Mock source</span>
+          </div>
         </div>
       </aside>
 

@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { mockSessions } from "../../lib/mock-data";
+import { listSessionsResponse } from "../../lib/session-adapter";
 
-export default function SessionsPage() {
+export default async function SessionsPage() {
+  const { data: sessions, meta } = await listSessionsResponse();
+
   return (
     <div className="stack">
       <div className="page-title">
@@ -9,11 +11,23 @@ export default function SessionsPage() {
           <p className="eyebrow">Sessions</p>
           <h2>Explorer</h2>
           <p className="muted">
-            Planned MVP surface: search, filters, transcript inspection, tool trace, and export. This page currently uses static sample data.
+            Planned MVP surface: search, filters, transcript inspection, tool
+            trace, and export. This page now renders the same normalized
+            contract exposed through <span className="mono">GET /api/sessions</span>.
           </p>
         </div>
-        <span className="badge">MVP-first</span>
+        <span className="badge">{meta.adapter.label}</span>
       </div>
+
+      <section className="card stack">
+        <div className="badge-row">
+          <span className="badge">Count: {meta.count ?? sessions.length}</span>
+          <span className="badge">Mode: {meta.adapter.mode}</span>
+          <span className="badge">Read-only</span>
+          <span className="badge warn">Underlying data is mock</span>
+        </div>
+        <p className="muted">{meta.note}</p>
+      </section>
 
       <section className="card stack">
         <div className="badge-row">
@@ -22,33 +36,42 @@ export default function SessionsPage() {
           <span className="badge">Sort: updatedAt</span>
         </div>
         <div className="list">
-          {mockSessions.map((session) => (
-            <div key={session.slug} className="session-row">
+          {sessions.map((session) => (
+            <div key={session.key} className="session-row">
               <div className="stack" style={{ flex: 1 }}>
                 <div>
                   <p className="eyebrow">{session.channel}</p>
                   <h3>{session.displayName}</h3>
-                  <p className="muted">{session.key}</p>
+                  <p className="muted mono">{session.key}</p>
                 </div>
                 <div className="badge-row">
                   <span className="badge">{session.kind}</span>
                   <span className="badge">{session.model}</span>
-                  {session.hasCompaction ? <span className="badge warn">compacted</span> : null}
-                  {session.hasSubagent ? <span className="badge good">subagent</span> : null}
-                  {session.abortedLastRun ? <span className="badge bad">aborted</span> : null}
+                  <span className="badge">source: {session.dataSource}</span>
+                  {session.status.hasCompaction ? (
+                    <span className="badge warn">compacted</span>
+                  ) : null}
+                  {session.status.hasSubagent ? (
+                    <span className="badge good">subagent</span>
+                  ) : null}
+                  {session.status.abortedLastRun ? (
+                    <span className="badge bad">aborted</span>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="stack" style={{ minWidth: 220 }}>
-                <div className="kv">
+              <div className="stack" style={{ minWidth: 260 }}>
+                <div className="kv compact-kv">
                   <span className="muted">Updated</span>
                   <span>{session.updatedAt}</span>
                   <span className="muted">Context</span>
-                  <span>{session.contextTokens.toLocaleString()} tok</span>
+                  <span>{session.tokens.context.toLocaleString()} tok</span>
                   <span className="muted">Total</span>
-                  <span>{session.totalTokens.toLocaleString()} tok</span>
+                  <span>{session.tokens.total.toLocaleString()} tok</span>
+                  <span className="muted">API</span>
+                  <span className="mono">{session.apiPath}</span>
                 </div>
-                <Link href={`/sessions/${session.slug}`} className="badge">
+                <Link href={session.href} className="badge">
                   Inspect session
                 </Link>
               </div>

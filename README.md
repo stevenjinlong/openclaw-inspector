@@ -53,6 +53,12 @@ Primary surfaces:
 
 ## Current status
 
-Planning and bootstrap stage.
+Docs-first bootstrap plus a local-first web milestone.
 
-The current milestone is to define the product clearly enough that implementation can begin without rediscovering the shape every day.
+What exists now:
+- product docs under `docs/`
+- a minimal Next.js-style shell under `web/`
+- read-only route handlers for health and sessions
+- a small adapter layer that normalizes mock session data into API responses
+
+The current milestone is to keep the UI honest about mock data while making the adapter seam real enough that the source can later switch to OpenClaw CLI or Gateway-backed data.

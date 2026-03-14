@@ -1,10 +1,19 @@
 import Link from "next/link";
-import { mockSessions } from "../lib/mock-data";
+import { getHealthResponse, listSessions } from "../lib/session-adapter";
 
-export default function DashboardPage() {
-  const activeSessions = mockSessions.length;
-  const abortedCount = mockSessions.filter((session) => session.abortedLastRun).length;
-  const compactedCount = mockSessions.filter((session) => session.hasCompaction).length;
+export default async function DashboardPage() {
+  const [health, sessions] = await Promise.all([
+    getHealthResponse(),
+    listSessions(),
+  ]);
+
+  const activeSessions = sessions.length;
+  const abortedCount = sessions.filter(
+    (session) => session.status.abortedLastRun,
+  ).length;
+  const compactedCount = sessions.filter(
+    (session) => session.status.hasCompaction,
+  ).length;
 
   return (
     <div className="stack">
@@ -13,7 +22,9 @@ export default function DashboardPage() {
           <p className="eyebrow">Dashboard</p>
           <h2>OpenClaw Inspector</h2>
           <p className="muted">
-            Early shell for session observability. The UI below is powered by mock data and mirrors the planned product surfaces.
+            Early shell for session observability. The UI now reads through a
+            local adapter layer and route handlers, while the underlying source
+            remains explicit mock data.
           </p>
         </div>
         <Link href="/sessions" className="badge">
@@ -21,16 +32,31 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      <section className="card stack">
+        <div className="badge-row">
+          <span className="badge">Adapter: {health.adapter.label}</span>
+          <span className="badge">Route: GET /api/health</span>
+          <span className="badge">Route: GET /api/sessions</span>
+          <span className="badge warn">Mock source</span>
+          <span className="badge">Read-only</span>
+        </div>
+        <p className="muted">
+          Health is {health.checks[0]?.status ?? "unknown"}. This milestone is
+          about stabilizing the contract between UI and backend before swapping
+          the source to OpenClaw CLI JSON or Gateway-backed data.
+        </p>
+      </section>
+
       <div className="grid cols-3">
         <section className="card">
           <p className="eyebrow">Sessions</p>
           <div className="metric">{activeSessions}</div>
-          <p className="muted">Visible sessions in the current mock workspace.</p>
+          <p className="muted">Visible sessions in the current adapter-backed sample set.</p>
         </section>
         <section className="card">
           <p className="eyebrow">Compactions</p>
           <div className="metric">{compactedCount}</div>
-          <p className="muted">Sessions with compaction markers in the sample dataset.</p>
+          <p className="muted">Sessions with compaction markers in the normalized sample data.</p>
         </section>
         <section className="card">
           <p className="eyebrow">Aborted</p>
@@ -46,7 +72,9 @@ export default function DashboardPage() {
             <h3>Make runs explainable</h3>
           </div>
           <p className="muted">
-            OpenClaw already has session management, maintenance, compaction, and subagents. Inspector exists to turn those invisible mechanics into something you can inspect and reason about quickly.
+            OpenClaw already has session management, maintenance, compaction, and
+            subagents. Inspector exists to turn those invisible mechanics into
+            something you can inspect and reason about quickly.
           </p>
           <div className="badge-row">
             <span className="badge">Session explorer</span>
@@ -62,10 +90,10 @@ export default function DashboardPage() {
             <h3>First useful slice</h3>
           </div>
           <ol className="muted">
-            <li>Replace mock sessions with adapter-backed data</li>
-            <li>Build sessions list + transcript view</li>
-            <li>Add tool inspector and export</li>
-            <li>Layer in context and maintenance</li>
+            <li>Swap the mock adapter source to OpenClaw CLI JSON or Gateway reads</li>
+            <li>Expand the session detail view into transcript, tools, and stats tabs</li>
+            <li>Add maintenance preview backed by a dry-run endpoint</li>
+            <li>Layer in refresh controls and action safety rails</li>
           </ol>
         </section>
       </div>

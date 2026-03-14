@@ -6,7 +6,8 @@ export default function MaintenancePage() {
           <p className="eyebrow">Maintenance</p>
           <h2>Cleanup preview and store health</h2>
           <p className="muted">
-            This page is reserved for session-store counts, stale session surfacing, transcript footprint, and cleanup dry-run previews.
+            This page is reserved for session-store counts, stale session
+            surfacing, transcript footprint, and cleanup dry-run previews.
           </p>
         </div>
         <span className="badge">Planned for v0.2+</span>
@@ -28,6 +29,7 @@ export default function MaintenancePage() {
             <li>Read-only by default</li>
             <li>No enforce action until explicit opt-in</li>
             <li>Every dangerous action gets confirmation and preview</li>
+            <li>Likely next route: GET /api/maintenance/preview</li>
           </ul>
         </article>
       </section>
