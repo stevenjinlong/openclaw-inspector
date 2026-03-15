@@ -5,7 +5,7 @@ import { getSessionDetailResponse } from "../../../lib/session-adapter";
 
 export const dynamic = "force-dynamic";
 
-type DetailTab = "transcript" | "tools" | "stats";
+type DetailTab = "transcript" | "tools" | "stats" | "export";
 type ToolTraceStatusFilter = "all" | ToolTraceEntry["status"];
 type DetailSearchParams = {
   tab?: string | string[];
@@ -31,6 +31,8 @@ export default async function SessionDetailPage({
   const statusFilter = normalizeStatusFilter(firstString(resolvedSearchParams.status));
   const toolFilter = normalizeToolFilter(firstString(resolvedSearchParams.tool));
   const baseHref = session.href;
+  const jsonExportHref = `${session.apiPath}/export?format=json`;
+  const markdownExportHref = `${session.apiPath}/export?format=md`;
   const toolOptions = Array.from(
     new Set(session.toolTrace.map((trace) => trace.toolName)),
   ).sort((left, right) => left.localeCompare(right));
@@ -194,6 +196,12 @@ export default async function SessionDetailPage({
             className={`tab-link ${currentTab === "stats" ? "active" : ""}`}
           >
             Stats
+          </Link>
+          <Link
+            href={buildDetailHref(baseHref, { tab: "export" })}
+            className={`tab-link ${currentTab === "export" ? "active" : ""}`}
+          >
+            Export
           </Link>
         </div>
 
@@ -498,6 +506,74 @@ export default async function SessionDetailPage({
               </section>
             </div>
           </div>
+        ) : currentTab === "export" ? (
+          <div className="stack">
+            <div>
+              <p className="eyebrow">Export</p>
+              <h3>Portable debug bundle</h3>
+              <p className="muted">
+                Export the current session as structured JSON or readable
+                Markdown. Both formats include transcript, tool trace, summary,
+                and adapter metadata.
+              </p>
+            </div>
+
+            <div className="grid cols-2">
+              <section className="card stack">
+                <p className="eyebrow">Formats</p>
+                <div className="badge-row">
+                  <a href={jsonExportHref} className="export-link">
+                    Export JSON bundle
+                  </a>
+                  <a href={markdownExportHref} className="export-link">
+                    Export Markdown
+                  </a>
+                </div>
+                <p className="muted">
+                  JSON is best for machine processing and future re-import.
+                  Markdown is best for pasting into issues, chats, and notes.
+                </p>
+              </section>
+
+              <section className="card stack">
+                <p className="eyebrow">Bundle contents</p>
+                <div className="kv compact-kv">
+                  <span className="muted">Transcript entries</span>
+                  <span>{transcriptMessageCount}</span>
+                  <span className="muted">Tool traces</span>
+                  <span>{session.toolTrace.length}</span>
+                  <span className="muted">Warnings</span>
+                  <span>{meta.warnings?.length ? meta.warnings.length : 0}</span>
+                  <span className="muted">Session source</span>
+                  <span>{session.dataSource}</span>
+                  <span className="muted">Transcript source</span>
+                  <span>{session.transcript.source}</span>
+                </div>
+              </section>
+            </div>
+
+            <div className="grid cols-2">
+              <section className="card stack">
+                <p className="eyebrow">JSON bundle includes</p>
+                <ul className="muted">
+                  <li>Normalized session detail record</li>
+                  <li>Tool trace entries with pairing status</li>
+                  <li>Adapter metadata and warnings</li>
+                  <li>Summary counts for transcript and tool traces</li>
+                </ul>
+              </section>
+
+              <section className="card stack">
+                <p className="eyebrow">Markdown export includes</p>
+                <ul className="muted">
+                  <li>Session header and token usage</li>
+                  <li>Tool trace summary</li>
+                  <li>Warnings and adapter notes</li>
+                  <li>Full tool trace and transcript sections</li>
+                </ul>
+              </section>
+            </div>
+          </div>
         ) : (
           <div className="stack">
             <div>
@@ -555,7 +631,7 @@ function firstString(value?: string | string[]): string | undefined {
 }
 
 function normalizeTab(value?: string): DetailTab {
-  if (value === "tools" || value === "stats") {
+  if (value === "tools" || value === "stats" || value === "export") {
     return value;
   }
 

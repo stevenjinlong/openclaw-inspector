@@ -236,6 +236,18 @@ a {
   background: rgba(14, 20, 40, 0.55);
 }
 
+.export-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(14, 20, 40, 0.55);
+  color: var(--text);
+}
+
 details {
   margin-top: 8px;
 }
