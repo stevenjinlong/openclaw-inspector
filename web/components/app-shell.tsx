@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import {
   DashboardIcon,
   MaintenanceIcon,
+  SearchIcon,
   SessionsIcon,
   SettingsIcon,
   SparklesIcon,
@@ -15,6 +16,7 @@ import {
 const navItems = [
   { href: "/", label: "Dashboard", description: "Overview", icon: DashboardIcon },
   { href: "/sessions", label: "Sessions", description: "Explorer", icon: SessionsIcon },
+  { href: "/search", label: "Search", description: "Transcripts", icon: SearchIcon },
   {
     href: "/maintenance",
     label: "Maintenance",

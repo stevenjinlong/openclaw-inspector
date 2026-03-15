@@ -9,6 +9,7 @@ type DetailSearchParams = {
   tab?: string | string[];
   status?: string | string[];
   tool?: string | string[];
+  page?: string | string[];
 };
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export default async function SessionDetailPage({
       initialTab={normalizeTab(firstString(resolvedSearchParams.tab))}
       initialStatusFilter={normalizeStatusFilter(firstString(resolvedSearchParams.status))}
       initialToolFilter={normalizeToolFilter(firstString(resolvedSearchParams.tool))}
+      initialTranscriptPage={normalizePage(firstString(resolvedSearchParams.page))}
     />
   );
 }
@@ -58,4 +60,9 @@ function normalizeStatusFilter(value?: string): ToolTraceStatusFilter {
 
 function normalizeToolFilter(value?: string): string {
   return value?.trim() ? value : "all";
+}
+
+function normalizePage(value?: string): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1;
 }

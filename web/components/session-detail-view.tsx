@@ -13,9 +13,12 @@ import {
   ActivityIcon,
   AlertTriangleIcon,
   ArrowLeftIcon,
+  DatabaseIcon,
   MaintenanceIcon,
   PauseCircleIcon,
   SessionsIcon,
+  ShieldIcon,
+  SparklesIcon,
 } from "./ui-icons";
 
 type DetailTab = "transcript" | "tools" | "stats" | "export";
@@ -28,12 +31,14 @@ export function SessionDetailView({
   initialTab,
   initialStatusFilter,
   initialToolFilter,
+  initialTranscriptPage,
 }: {
   session: SessionDetailRecord;
   meta: ResponseMeta;
   initialTab: DetailTab;
   initialStatusFilter: ToolTraceStatusFilter;
   initialToolFilter: string;
+  initialTranscriptPage: number;
 }) {
   const [currentTab, setCurrentTab] = useState<DetailTab>(initialTab);
   const [statusFilter, setStatusFilter] = useState<ToolTraceStatusFilter>(initialStatusFilter);
@@ -103,7 +108,7 @@ export function SessionDetailView({
     1,
     Math.ceil(transcriptMessageCount / transcriptPageSize),
   );
-  const [transcriptPage, setTranscriptPage] = useState<number>(transcriptPageCount);
+  const [transcriptPage, setTranscriptPage] = useState<number>(initialTranscriptPage);
   const pagedTranscriptMessages = useMemo(() => {
     const startIndex = (transcriptPage - 1) * transcriptPageSize;
     return session.transcript.messages.slice(startIndex, startIndex + transcriptPageSize);
@@ -225,11 +230,26 @@ export function SessionDetailView({
                 </span>
               );
             })()}
-            <span className="badge">{session.kind}</span>
-            <span className="badge">{session.channel}</span>
-            <span className="badge">{session.model}</span>
-            <span className="badge">{meta.adapter.label}</span>
-            <span className="badge">transcript: {session.transcript.source}</span>
+            <span className="badge meta-badge meta-badge-kind">
+              <SessionsIcon className="icon icon-sm" />
+              {session.kind}
+            </span>
+            <span className="badge meta-badge meta-badge-channel">
+              <ActivityIcon className="icon icon-sm" />
+              {session.channel}
+            </span>
+            <span className="badge meta-badge meta-badge-model">
+              <SparklesIcon className="icon icon-sm" />
+              {session.model}
+            </span>
+            <span className="badge meta-badge meta-badge-provider">
+              <DatabaseIcon className="icon icon-sm" />
+              {meta.adapter.label}
+            </span>
+            <span className="badge meta-badge meta-badge-source">
+              <ShieldIcon className="icon icon-sm" />
+              transcript: {session.transcript.source}
+            </span>
             {session.status.hasCompaction ? <span className="badge warn">compacted</span> : null}
             {session.status.hasSubagent ? <span className="badge good">subagent</span> : null}
             {session.status.abortedLastRun ? <span className="badge bad">aborted</span> : null}
@@ -754,7 +774,11 @@ export function SessionDetailView({
 
             <div className="list">
               {pagedTranscriptMessages.map((message) => (
-                <article key={`${message.messageType}-${message.index}`} className={`transcript-item ${message.messageType}`}>
+                <article
+                  key={`${message.messageType}-${message.index}`}
+                  id={`message-${message.index}`}
+                  className={`transcript-item ${message.messageType}`}
+                >
                   <div className="badge-row">
                     <span className="badge">#{message.index + 1}</span>
                     <span className="badge">{message.role}</span>
