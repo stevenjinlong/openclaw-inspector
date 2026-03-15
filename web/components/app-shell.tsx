@@ -1,51 +1,77 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/sessions", label: "Sessions" },
-  { href: "/maintenance", label: "Maintenance" },
-  { href: "/settings", label: "Settings" },
+  { href: "/", label: "Dashboard", description: "Overview" },
+  { href: "/sessions", label: "Sessions", description: "Explorer" },
+  { href: "/maintenance", label: "Maintenance", description: "Cleanup preview" },
+  { href: "/settings", label: "Settings", description: "Connection" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div>
-          <p className="eyebrow">OpenClaw</p>
-          <h1>Inspector</h1>
-          <p className="muted">
-            Visualize, debug, and control your OpenClaw sessions.
-          </p>
+        <div className="brand-block">
+          <div className="brand-mark">OC</div>
+          <div className="stack compact-gap">
+            <p className="eyebrow">OpenClaw</p>
+            <h1 className="sidebar-title">Inspector</h1>
+            <p className="muted sidebar-copy">
+              A calm control plane for sessions, traces, and maintenance.
+            </p>
+          </div>
         </div>
 
+        <div className="sidebar-section-label">Workspace</div>
+        <div className="sidebar-card surface-soft stack">
+          <div className="kv compact-kv">
+            <span className="muted">Mode</span>
+            <span>Local-first</span>
+            <span className="muted">Source</span>
+            <span>Gateway → CLI</span>
+            <span className="muted">Policy</span>
+            <span>Read-only</span>
+          </div>
+        </div>
+
+        <div className="sidebar-section-label">Navigation</div>
         <nav className="nav">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-link">
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const active = pathname === item.href;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav-link ${active ? "active" : ""}`}
+              >
+                <span className="nav-link-copy">
+                  <strong>{item.label}</strong>
+                  <span className="muted">{item.description}</span>
+                </span>
+                <span className="nav-link-dot" />
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="sidebar-card stack">
-          <div>
-            <p className="eyebrow">Mode</p>
-            <strong>Local-first adapter</strong>
-          </div>
+        <div className="sidebar-footer surface-soft">
+          <p className="eyebrow">Phase 1</p>
           <p className="muted">
-            The app now tries live local OpenClaw data first: Gateway sessions,
-            Gateway chat history, then CLI / local transcript fallbacks.
+            Light-first visual refresh with cleaner surfaces and calmer spacing.
           </p>
-          <div className="badge-row">
-            <span className="badge">GET /api/health</span>
-            <span className="badge">GET /api/sessions</span>
-            <span className="badge">GET /api/sessions/[key]</span>
-          </div>
         </div>
       </aside>
 
-      <main className="content">{children}</main>
+      <main className="content">
+        <div className="content-inner">{children}</div>
+      </main>
     </div>
   );
 }

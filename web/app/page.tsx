@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import { getMaintenancePreviewResponse } from "../lib/maintenance-adapter";
 import { formatTokenCount } from "../lib/normalizers";
 import { getHealthResponse, listSessions } from "../lib/session-adapter";
@@ -13,15 +14,9 @@ export default async function DashboardPage() {
   ]);
 
   const totalSessions = sessions.length;
-  const abortedCount = sessions.filter(
-    (session) => session.status.abortedLastRun,
-  ).length;
-  const compactedCount = sessions.filter(
-    (session) => session.status.hasCompaction,
-  ).length;
-  const subagentCount = sessions.filter(
-    (session) => session.status.hasSubagent,
-  ).length;
+  const abortedCount = sessions.filter((session) => session.status.abortedLastRun).length;
+  const compactedCount = sessions.filter((session) => session.status.hasCompaction).length;
+  const subagentCount = sessions.filter((session) => session.status.hasSubagent).length;
   const attentionSessions = sessions.filter(
     (session) =>
       session.status.abortedLastRun ||
@@ -30,20 +25,16 @@ export default async function DashboardPage() {
   );
   const distinctAgents = new Set(sessions.map((session) => session.agentId ?? "unknown")).size;
   const distinctChannels = new Set(sessions.map((session) => session.channel)).size;
-  const highContextSessions = sessions.filter(
-    (session) => session.tokens.context >= 200_000,
-  ).length;
-  const staleTokenSessions = sessions.filter(
-    (session) => !session.tokens.fresh,
-  ).length;
+  const highContextSessions = sessions.filter((session) => session.tokens.context >= 200_000).length;
+  const staleTokenSessions = sessions.filter((session) => !session.tokens.fresh).length;
 
   const topContextSessions = [...sessions]
     .sort((left, right) => right.tokens.context - left.tokens.context)
-    .slice(0, 5);
+    .slice(0, 4);
 
   const recentAttentionSessions = [...attentionSessions]
     .sort((left, right) => (right.updatedAtMs ?? 0) - (left.updatedAtMs ?? 0))
-    .slice(0, 5);
+    .slice(0, 4);
 
   const kindCounts = Array.from(
     sessions.reduce((map, session) => {
@@ -60,32 +51,52 @@ export default async function DashboardPage() {
   ).sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
 
   return (
-    <div className="stack">
-      <div className="page-title">
-        <div>
-          <p className="eyebrow">Dashboard</p>
-          <h2>OpenClaw Inspector</h2>
-          <p className="muted">
-            Live operational overview for sessions, pressure points, and
-            maintenance posture.
+    <div className="stack dashboard-shell">
+      <section className="hero-card">
+        <div className="hero-copy stack">
+          <p className="eyebrow">OpenClaw Inspector</p>
+          <h2 className="hero-title">
+            A cleaner control plane for sessions, traces, and maintenance.
+          </h2>
+          <p className="hero-subtitle muted">
+            Live local OpenClaw data, shaped into a calmer dashboard you can
+            actually scan in seconds.
           </p>
-        </div>
-        <div className="badge-row">
-          <Link href="/sessions" className="export-link">
-            Open sessions explorer
-          </Link>
-          <Link href="/maintenance" className="export-link">
-            Open maintenance preview
-          </Link>
-        </div>
-      </div>
 
-      <section className="card stack">
+          <div className="hero-actions badge-row">
+            <Link href="/sessions" className="primary-action">
+              Explore sessions
+            </Link>
+            <Link href="/maintenance" className="secondary-action">
+              Maintenance preview
+            </Link>
+          </div>
+        </div>
+
+        <div className="hero-summary">
+          <div className="summary-tile accent">
+            <span className="muted">Active sessions</span>
+            <strong>{totalSessions}</strong>
+          </div>
+          <div className="summary-tile">
+            <span className="muted">Agents</span>
+            <strong>{distinctAgents}</strong>
+          </div>
+          <div className="summary-tile">
+            <span className="muted">Channels</span>
+            <strong>{distinctChannels}</strong>
+          </div>
+          <div className="summary-tile warm">
+            <span className="muted">Needs attention</span>
+            <strong>{attentionSessions.length}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="card glass-panel stack">
         <div className="badge-row">
           <span className="badge">Adapter: {health.adapter.label}</span>
-          <span className="badge">Sessions: {totalSessions}</span>
-          <span className="badge">Agents: {distinctAgents}</span>
-          <span className="badge">Channels: {distinctChannels}</span>
+          <span className="badge">Mode: {health.adapter.mode}</span>
           {health.adapter.stubbed ? (
             <span className="badge warn">Stubbed fallback</span>
           ) : (
@@ -93,215 +104,233 @@ export default async function DashboardPage() {
           )}
           <span className="badge">Read-only</span>
         </div>
-        <p className="muted">
-          Health is {health.checks[0]?.status ?? "unknown"}. This dashboard now
-          combines live session data with maintenance dry-run results so the
-          first screen already tells you what deserves attention.
+        <p className="muted dashboard-note">
+          {health.warnings.length > 0
+            ? "Inspector is available, but some sources fell back."
+            : "Inspector is healthy and reading live local OpenClaw data."}
         </p>
-        {health.warnings.length ? (
-          <ul className="muted">
-            {health.warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        ) : null}
       </section>
 
-      <div className="grid cols-3">
-        <section className="card stack">
-          <p className="eyebrow">Needs attention</p>
-          <div className="metric">{attentionSessions.length}</div>
-          <p className="muted">
-            Sessions flagged by aborted / compacted / subagent activity.
-          </p>
-        </section>
-        <section className="card stack">
-          <p className="eyebrow">High context</p>
-          <div className="metric">{highContextSessions}</div>
-          <p className="muted">
-            Sessions at or above 200k context tokens.
-          </p>
-        </section>
-        <section className="card stack">
-          <p className="eyebrow">Maintenance risk</p>
-          <div className="metric">
-            {maintenance.data ? maintenance.data.totals.wouldMutateStores : "n/a"}
-          </div>
-          <p className="muted">
-            Stores that would change if cleanup were enforced.
-          </p>
-        </section>
-      </div>
-
-      <div className="grid cols-3">
-        <section className="card stack">
-          <p className="eyebrow">Aborted</p>
-          <div className="metric">{abortedCount}</div>
-          <p className="muted">Best first stop for failure forensics.</p>
-        </section>
-        <section className="card stack">
-          <p className="eyebrow">Compacted</p>
-          <div className="metric">{compactedCount}</div>
-          <p className="muted">Good candidates for context-loss inspection.</p>
-        </section>
-        <section className="card stack">
-          <p className="eyebrow">Stale token stats</p>
-          <div className="metric">{staleTokenSessions}</div>
-          <p className="muted">Sessions where token totals are not currently fresh.</p>
-        </section>
-      </div>
-
-      <div className="grid cols-2">
-        <section className="card stack">
+      <section className="dashboard-section stack">
+        <div className="section-heading">
           <div>
-            <p className="eyebrow">Attention radar</p>
-            <h3>Jump directly into the problem buckets</h3>
+            <p className="eyebrow">Operational pulse</p>
+            <h3>What needs your attention right now</h3>
           </div>
-          <div className="badge-row">
-            <Link href="/sessions?state=aborted" className="export-link">
-              Aborted ({abortedCount})
-            </Link>
-            <Link href="/sessions?state=compacted" className="export-link">
-              Compacted ({compactedCount})
-            </Link>
-            <Link href="/sessions?state=subagent" className="export-link">
-              Subagent ({subagentCount})
-            </Link>
-            <Link href="/sessions?q=discord" className="export-link">
-              Discord sessions
-            </Link>
-          </div>
-          <p className="muted">
-            These links turn the dashboard into a launchpad instead of just a
-            status wall.
-          </p>
-        </section>
+        </div>
 
-        <section className="card stack">
+        <div className="grid cols-3">
+          <section className="metric-card attention">
+            <p className="eyebrow">Attention</p>
+            <div className="metric large">{attentionSessions.length}</div>
+            <p className="muted">Aborted, compacted, or subagent-heavy sessions.</p>
+          </section>
+          <section className="metric-card calm">
+            <p className="eyebrow">High context</p>
+            <div className="metric large">{highContextSessions}</div>
+            <p className="muted">Sessions already at or above 200k context tokens.</p>
+          </section>
+          <section className="metric-card warm">
+            <p className="eyebrow">Maintenance risk</p>
+            <div className="metric large">
+              {maintenance.data ? maintenance.data.totals.wouldMutateStores : "n/a"}
+            </div>
+            <p className="muted">Stores that would change if cleanup were enforced.</p>
+          </section>
+        </div>
+      </section>
+
+      <section className="dashboard-section stack">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Quick actions</p>
+            <h3>Jump straight into the interesting slices</h3>
+          </div>
+        </div>
+
+        <div className="grid cols-2">
+          <section className="card stack surface-soft">
+            <div className="badge-row">
+              <Link href="/sessions?state=aborted" className="export-link">
+                Aborted ({abortedCount})
+              </Link>
+              <Link href="/sessions?state=compacted" className="export-link">
+                Compacted ({compactedCount})
+              </Link>
+              <Link href="/sessions?state=subagent" className="export-link">
+                Subagent ({subagentCount})
+              </Link>
+              <Link href="/sessions?q=discord" className="export-link">
+                Discord sessions
+              </Link>
+            </div>
+            <p className="muted">
+              Use the dashboard as a launchpad, not just a wall of numbers.
+            </p>
+          </section>
+
+          <section className="card stack surface-soft">
+            <div className="grid cols-2">
+              <div className="stats-tile soft-contrast">
+                <span className="muted">Aborted</span>
+                <strong>{abortedCount}</strong>
+              </div>
+              <div className="stats-tile soft-contrast">
+                <span className="muted">Compacted</span>
+                <strong>{compactedCount}</strong>
+              </div>
+              <div className="stats-tile soft-contrast">
+                <span className="muted">Subagent</span>
+                <strong>{subagentCount}</strong>
+              </div>
+              <div className="stats-tile soft-contrast">
+                <span className="muted">Stale tokens</span>
+                <strong>{staleTokenSessions}</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section className="dashboard-section stack">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Session pressure</p>
+            <h3>Largest context sessions</h3>
+          </div>
+        </div>
+
+        <div className="grid cols-2">
+          <section className="card stack surface-soft">
+            {topContextSessions.length === 0 ? (
+              <p className="muted">No session data available.</p>
+            ) : (
+              <div className="list">
+                {topContextSessions.map((session, index) => (
+                  <Link key={session.key} href={session.href} className="stats-row elevated-row">
+                    <span>
+                      <strong>{index + 1}. {session.displayName}</strong>
+                      <br />
+                      <span className="muted mono">{session.key}</span>
+                    </span>
+                    <strong>{formatTokenCount(session.tokens.context)}</strong>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="card stack surface-soft">
+            {recentAttentionSessions.length === 0 ? (
+              <p className="muted">No notable sessions right now.</p>
+            ) : (
+              <div className="list">
+                {recentAttentionSessions.map((session) => (
+                  <Link key={session.key} href={session.href} className="stats-row elevated-row">
+                    <span>
+                      <strong>{session.displayName}</strong>
+                      <br />
+                      <span className="muted">{session.updatedAt}</span>
+                    </span>
+                    <span className="badge-row">
+                      {session.status.abortedLastRun ? <span className="badge bad">aborted</span> : null}
+                      {session.status.hasCompaction ? <span className="badge warn">compacted</span> : null}
+                      {session.status.hasSubagent ? <span className="badge good">subagent</span> : null}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      </section>
+
+      <section className="dashboard-section stack">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Distribution</p>
+            <h3>Channel and session mix</h3>
+          </div>
+        </div>
+
+        <div className="grid cols-2">
+          <section className="card stack surface-soft">
+            <p className="eyebrow">Channel mix</p>
+            {channelCounts.length === 0 ? (
+              <p className="muted">No channel data available.</p>
+            ) : (
+              <div className="list">
+                {channelCounts.slice(0, 6).map(([channel, count]) => (
+                  <Link
+                    key={channel}
+                    href={`/sessions?channel=${encodeURIComponent(channel)}`}
+                    className="stats-row elevated-row"
+                  >
+                    <span>{channel}</span>
+                    <strong>{count}</strong>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="card stack surface-soft">
+            <p className="eyebrow">Kind mix</p>
+            {kindCounts.length === 0 ? (
+              <p className="muted">No kind data available.</p>
+            ) : (
+              <div className="list">
+                {kindCounts.map(([kind, count]) => (
+                  <Link
+                    key={kind}
+                    href={`/sessions?kind=${encodeURIComponent(kind)}`}
+                    className="stats-row elevated-row"
+                  >
+                    <span>{kind}</span>
+                    <strong>{count}</strong>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      </section>
+
+      <section className="dashboard-section stack">
+        <div className="section-heading">
           <div>
             <p className="eyebrow">Maintenance pulse</p>
-            <h3>Dry-run summary</h3>
+            <h3>Dry-run snapshot</h3>
           </div>
+        </div>
+
+        <section className="card surface-soft stack">
           {maintenance.data ? (
-            <div className="grid cols-2">
-              <div className="stats-tile">
+            <div className="grid cols-4 responsive-grid">
+              <div className="stats-tile soft-contrast">
                 <span className="muted">Stores</span>
                 <strong>{maintenance.data.totals.stores}</strong>
               </div>
-              <div className="stats-tile">
+              <div className="stats-tile soft-contrast">
                 <span className="muted">Before → after</span>
                 <strong>
                   {maintenance.data.totals.beforeCount} → {maintenance.data.totals.afterCount}
                 </strong>
               </div>
-              <div className="stats-tile">
+              <div className="stats-tile soft-contrast">
                 <span className="muted">Pruned</span>
                 <strong>{maintenance.data.totals.pruned}</strong>
               </div>
-              <div className="stats-tile">
+              <div className="stats-tile soft-contrast">
                 <span className="muted">Capped</span>
                 <strong>{maintenance.data.totals.capped}</strong>
               </div>
             </div>
           ) : (
-            <p className="muted">
-              Maintenance dry-run is unavailable right now.
-            </p>
+            <p className="muted">Maintenance dry-run is unavailable right now.</p>
           )}
         </section>
-      </div>
-
-      <div className="grid cols-2">
-        <section className="card stack">
-          <div>
-            <p className="eyebrow">Largest context sessions</p>
-            <h3>Pressure points</h3>
-          </div>
-          {topContextSessions.length === 0 ? (
-            <p className="muted">No session data available.</p>
-          ) : (
-            <div className="list">
-              {topContextSessions.map((session) => (
-                <Link key={session.key} href={session.href} className="stats-row">
-                  <span>
-                    <strong>{session.displayName}</strong>
-                    <br />
-                    <span className="muted mono">{session.key}</span>
-                  </span>
-                  <strong>{formatTokenCount(session.tokens.context)}</strong>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="card stack">
-          <div>
-            <p className="eyebrow">Recent notable sessions</p>
-            <h3>What probably deserves a click</h3>
-          </div>
-          {recentAttentionSessions.length === 0 ? (
-            <p className="muted">No notable sessions right now.</p>
-          ) : (
-            <div className="list">
-              {recentAttentionSessions.map((session) => (
-                <Link key={session.key} href={session.href} className="stats-row">
-                  <span>
-                    <strong>{session.displayName}</strong>
-                    <br />
-                    <span className="muted">{session.updatedAt}</span>
-                  </span>
-                  <span className="badge-row">
-                    {session.status.abortedLastRun ? <span className="badge bad">aborted</span> : null}
-                    {session.status.hasCompaction ? <span className="badge warn">compacted</span> : null}
-                    {session.status.hasSubagent ? <span className="badge good">subagent</span> : null}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      <div className="grid cols-2">
-        <section className="card stack">
-          <div>
-            <p className="eyebrow">Channel mix</p>
-            <h3>Where the sessions live</h3>
-          </div>
-          {channelCounts.length === 0 ? (
-            <p className="muted">No channel data available.</p>
-          ) : (
-            <div className="list">
-              {channelCounts.slice(0, 6).map(([channel, count]) => (
-                <Link key={channel} href={`/sessions?channel=${encodeURIComponent(channel)}`} className="stats-row">
-                  <span>{channel}</span>
-                  <strong>{count}</strong>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="card stack">
-          <div>
-            <p className="eyebrow">Kind mix</p>
-            <h3>What kinds of sessions dominate</h3>
-          </div>
-          {kindCounts.length === 0 ? (
-            <p className="muted">No kind data available.</p>
-          ) : (
-            <div className="list">
-              {kindCounts.map(([kind, count]) => (
-                <Link key={kind} href={`/sessions?kind=${encodeURIComponent(kind)}`} className="stats-row">
-                  <span>{kind}</span>
-                  <strong>{count}</strong>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+      </section>
     </div>
   );
 }
