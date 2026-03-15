@@ -119,6 +119,86 @@ export default async function DashboardPage() {
       )
     : null;
 
+  const quickActionPartition = sessions.reduce(
+    (accumulator, session) => {
+      if (session.status.abortedLastRun) {
+        accumulator.aborted += 1;
+      } else if (session.status.hasCompaction) {
+        accumulator.compacted += 1;
+      } else if (session.status.hasSubagent) {
+        accumulator.subagent += 1;
+      } else {
+        accumulator.other += 1;
+      }
+
+      return accumulator;
+    },
+    { aborted: 0, compacted: 0, subagent: 0, other: 0 },
+  );
+
+  const quickActionDonutEntries: ChartEntry[] = [
+    {
+      label: "Aborted",
+      value: quickActionPartition.aborted,
+      href: "/sessions?state=aborted",
+      tone: "rose",
+    },
+    {
+      label: "Compacted",
+      value: quickActionPartition.compacted,
+      href: "/sessions?state=compacted",
+      tone: "amber",
+    },
+    {
+      label: "Subagent",
+      value: quickActionPartition.subagent,
+      href: "/sessions?state=subagent",
+      tone: "teal",
+    },
+    {
+      label: "Other",
+      value: quickActionPartition.other,
+      href: "/sessions",
+      tone: "blue",
+    },
+  ];
+
+  const maintenanceStoreEntries: ChartEntry[] = maintenance.data
+    ? [
+        {
+          label: "Would mutate",
+          value: maintenance.data.totals.wouldMutateStores,
+          tone: "amber",
+        },
+        {
+          label: "No change",
+          value: Math.max(
+            maintenance.data.totals.stores - maintenance.data.totals.wouldMutateStores,
+            0,
+          ),
+          tone: "teal",
+        },
+      ]
+    : [];
+
+  const maintenanceEntryEntries: ChartEntry[] = maintenance.data
+    ? [
+        {
+          label: "Retained",
+          value: maintenance.data.totals.afterCount,
+          tone: "teal",
+        },
+        {
+          label: "Removed",
+          value: Math.max(
+            maintenance.data.totals.beforeCount - maintenance.data.totals.afterCount,
+            0,
+          ),
+          tone: "rose",
+        },
+      ]
+    : [];
+
   return (
     <div className="stack dashboard-shell">
       <section className="hero-card hero-card-minimal hero-card-stacked">
@@ -262,6 +342,11 @@ export default async function DashboardPage() {
             <p className="muted">
               Use the dashboard as a launchpad, not just a wall of numbers.
             </p>
+            <DonutChartPanel
+              totalValue={totalSessions}
+              totalLabel="sessions"
+              entries={quickActionDonutEntries}
+            />
           </section>
 
           <section className="card stack surface-soft">
@@ -390,25 +475,21 @@ export default async function DashboardPage() {
         {maintenance.data ? (
           <div className="grid cols-2">
             <section className="card surface-soft stack">
-              <div className="grid cols-4 responsive-grid">
-                <div className="stats-tile soft-contrast">
-                  <span className="muted">Stores</span>
-                  <strong>{maintenance.data.totals.stores}</strong>
-                </div>
-                <div className="stats-tile soft-contrast">
-                  <span className="muted">Before → after</span>
-                  <strong>
-                    {maintenance.data.totals.beforeCount} → {maintenance.data.totals.afterCount}
-                  </strong>
-                </div>
-                <div className="stats-tile soft-contrast">
-                  <span className="muted">Pruned</span>
-                  <strong>{maintenance.data.totals.pruned}</strong>
-                </div>
-                <div className="stats-tile soft-contrast">
-                  <span className="muted">Capped</span>
-                  <strong>{maintenance.data.totals.capped}</strong>
-                </div>
+              <div className="donut-grid">
+                <DonutChartPanel
+                  totalValue={maintenance.data.totals.stores}
+                  totalLabel="stores"
+                  entries={maintenanceStoreEntries}
+                  title="Store mutation coverage"
+                  description="How many session stores would change if cleanup were enforced."
+                />
+                <DonutChartPanel
+                  totalValue={maintenance.data.totals.beforeCount}
+                  totalLabel="entries"
+                  entries={maintenanceEntryEntries}
+                  title="Entry retention"
+                  description="Entries projected to remain versus entries removed by the dry-run rules."
+                />
               </div>
             </section>
 
@@ -589,4 +670,105 @@ function RatioCard({
       </div>
     </section>
   );
+}
+
+function DonutChartPanel({
+  totalValue,
+  totalLabel,
+  entries,
+  title,
+  description,
+}: {
+  totalValue: number;
+  totalLabel: string;
+  entries: ChartEntry[];
+  title?: string;
+  description?: string;
+}) {
+  const positiveEntries = entries.filter((entry) => entry.value > 0);
+  const safeEntries = positiveEntries.length > 0
+    ? positiveEntries
+    : [{ label: "No data", value: 1, tone: "blue" as const }];
+  const total = Math.max(
+    safeEntries.reduce((sum, entry) => sum + entry.value, 0),
+    1,
+  );
+  const gradient = buildDonutGradient(safeEntries, total);
+
+  return (
+    <div className="stack donut-panel">
+      {title ? (
+        <div className="stack compact-gap">
+          <h3>{title}</h3>
+          {description ? <p className="muted">{description}</p> : null}
+        </div>
+      ) : null}
+
+      <div className="donut-layout">
+        <div className="donut-visual-shell">
+          <div className="donut-ring" style={{ backgroundImage: gradient }}>
+            <div className="donut-hole">
+              <strong>{totalValue.toLocaleString()}</strong>
+              <span className="muted">{totalLabel}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="donut-legend">
+          {safeEntries.map((entry) => {
+            const percent = Math.round((entry.value / total) * 100);
+            const legend = (
+              <>
+                <span className="donut-legend-main">
+                  <span className={`legend-dot tone-${entry.tone ?? "teal"}`} />
+                  <span>{entry.label}</span>
+                </span>
+                <span className="donut-legend-metric">
+                  <strong>{entry.value}</strong>
+                  <span className="muted">{percent}%</span>
+                </span>
+              </>
+            );
+
+            return entry.href ? (
+              <Link
+                key={`${entry.label}-${entry.href}`}
+                href={entry.href}
+                className="donut-legend-row donut-legend-row-link"
+              >
+                {legend}
+              </Link>
+            ) : (
+              <div key={entry.label} className="donut-legend-row">
+                {legend}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function buildDonutGradient(entries: ChartEntry[], total: number): string {
+  const stops: string[] = [];
+  let currentPercent = 0;
+
+  for (const entry of entries) {
+    const slicePercent = (entry.value / total) * 100;
+    const nextPercent = currentPercent + slicePercent;
+    const color = donutColor(entry.tone ?? "teal");
+    stops.push(`${color} ${currentPercent}% ${nextPercent}%`);
+    currentPercent = nextPercent;
+  }
+
+  return `conic-gradient(${stops.join(", ")})`;
+}
+
+function donutColor(tone: ChartTone): string {
+  if (tone === "violet") return "#8b5cf6";
+  if (tone === "amber") return "#f59e0b";
+  if (tone === "rose") return "#f43f5e";
+  if (tone === "blue") return "#3b82f6";
+  return "#14b8a6";
 }
