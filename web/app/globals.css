@@ -359,6 +359,16 @@ h1, h2, h3, h4, p {
   padding: 22px;
 }
 
+.interactive-card {
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.interactive-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(15, 118, 110, 0.18);
+}
+
 .metric.large {
   font-size: 40px;
   line-height: 1;
@@ -458,6 +468,68 @@ h1, h2, h3, h4, p {
   border: 1px solid var(--border);
   background: var(--surface-soft);
   border-radius: 18px;
+}
+
+.aligned-session-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 22px;
+  align-items: stretch;
+}
+
+.session-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 132px;
+}
+
+.session-main-head {
+  min-height: 82px;
+}
+
+.session-name {
+  font-size: 28px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.session-key {
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.session-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.session-stats-grid {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 10px 14px;
+}
+
+.session-api {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.session-open-link {
+  width: 100%;
+  justify-content: flex-start;
 }
 
 .elevated-row {
@@ -622,6 +694,10 @@ li + li {
   .grid.cols-4,
   .responsive-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .aligned-session-row {
+    grid-template-columns: 1fr;
   }
 }
 

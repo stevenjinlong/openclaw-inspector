@@ -12,7 +12,7 @@ import {
 
 type KindFilter = "all" | SessionKind;
 type ChannelFilter = "all" | string;
-type StateFilter = "all" | "aborted" | "compacted" | "subagent";
+type StateFilter = "all" | "attention" | "aborted" | "compacted" | "subagent";
 
 export function SessionsExplorer({
   sessions,
@@ -52,6 +52,17 @@ export function SessionsExplorer({
       }
 
       if (channelFilter !== "all" && session.channel !== channelFilter) {
+        return false;
+      }
+
+      if (
+        stateFilter === "attention" &&
+        !(
+          session.status.abortedLastRun ||
+          session.status.hasCompaction ||
+          session.status.hasSubagent
+        )
+      ) {
         return false;
       }
 
@@ -126,7 +137,7 @@ export function SessionsExplorer({
 
   return (
     <>
-      <section className="card stack">
+      <section className="card stack glass-panel">
         <div className="badge-row">
           <span className="badge">Total: {meta.count ?? sessions.length}</span>
           <span className="badge">Visible: {filteredSessions.length}</span>
@@ -148,7 +159,7 @@ export function SessionsExplorer({
         ) : null}
       </section>
 
-      <section className="card stack">
+      <section className="card stack surface-soft">
         <div className="search-row">
           <input
             className="search-input"
@@ -174,13 +185,8 @@ export function SessionsExplorer({
           ) : null}
         </div>
 
-        <div className="badge-row">
-          <span className="badge">Sort: updatedAt</span>
-          <span className="badge">Client-side filtering</span>
-        </div>
-
         <div className="grid cols-2">
-          <section className="card stack">
+          <section className="card stack surface-soft">
             <p className="eyebrow">Kind</p>
             <div className="badge-row">
               <button
@@ -203,7 +209,7 @@ export function SessionsExplorer({
             </div>
           </section>
 
-          <section className="card stack">
+          <section className="card stack surface-soft">
             <p className="eyebrow">Channel</p>
             <div className="badge-row">
               <button
@@ -227,11 +233,12 @@ export function SessionsExplorer({
           </section>
         </div>
 
-        <section className="card stack">
+        <section className="card stack surface-soft">
           <p className="eyebrow">State</p>
           <div className="badge-row">
             {([
               ["all", "All states"],
+              ["attention", "Needs attention"],
               ["aborted", "Aborted"],
               ["compacted", "Compacted"],
               ["subagent", "Subagent"],
@@ -249,7 +256,7 @@ export function SessionsExplorer({
         </section>
       </section>
 
-      <section className="card stack">
+      <section className="card stack surface-soft">
         {filteredSessions.length === 0 ? (
           <div className="empty-state">
             <h3>No sessions match the current search/filters</h3>
@@ -260,12 +267,12 @@ export function SessionsExplorer({
         ) : (
           <div className="list">
             {filteredSessions.map((session) => (
-              <div key={session.key} className="session-row">
-                <div className="stack" style={{ flex: 1 }}>
-                  <div>
+              <article key={session.key} className="session-row aligned-session-row">
+                <div className="session-main">
+                  <div className="session-main-head">
                     <p className="eyebrow">{session.channel}</p>
-                    <h3>{session.displayName}</h3>
-                    <p className="muted mono">{session.key}</p>
+                    <h3 className="session-name">{session.displayName}</h3>
+                    <p className="muted mono session-key">{session.key}</p>
                   </div>
                   <div className="badge-row">
                     <span className="badge">{session.kind}</span>
@@ -286,8 +293,8 @@ export function SessionsExplorer({
                   </div>
                 </div>
 
-                <div className="stack" style={{ minWidth: 260 }}>
-                  <div className="kv compact-kv">
+                <div className="session-side">
+                  <div className="session-stats-grid">
                     <span className="muted">Updated</span>
                     <span>{session.updatedAt}</span>
                     <span className="muted">Context</span>
@@ -295,13 +302,13 @@ export function SessionsExplorer({
                     <span className="muted">Total</span>
                     <span>{formatTokenCount(session.tokens.total)}</span>
                     <span className="muted">API</span>
-                    <span className="mono">{session.apiPath}</span>
+                    <span className="mono session-api">{session.apiPath}</span>
                   </div>
-                  <Link href={session.href} className="badge" prefetch>
+                  <Link href={session.href} className="export-link session-open-link" prefetch>
                     Inspect session
                   </Link>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}

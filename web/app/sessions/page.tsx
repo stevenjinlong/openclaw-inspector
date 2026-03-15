@@ -13,7 +13,7 @@ type SessionsSearchParams = {
 
 type KindFilter = "all" | SessionKind;
 type ChannelFilter = "all" | string;
-type StateFilter = "all" | "aborted" | "compacted" | "subagent";
+type StateFilter = "all" | "attention" | "aborted" | "compacted" | "subagent";
 
 export default async function SessionsPage({
   searchParams,
@@ -40,7 +40,7 @@ export default async function SessionsPage({
           <h2>Explorer</h2>
           <p className="muted">
             Live list view backed by a normalized adapter contract. Search and
-            filter controls now run on the client for immediate feedback.
+            filter controls run instantly, and the cards now align more cleanly.
           </p>
         </div>
         <span className="badge">{meta.adapter.label}</span>
@@ -79,7 +79,12 @@ function normalizeChannelFilter(
 }
 
 function normalizeStateFilter(value: string | undefined): StateFilter {
-  if (value === "aborted" || value === "compacted" || value === "subagent") {
+  if (
+    value === "attention" ||
+    value === "aborted" ||
+    value === "compacted" ||
+    value === "subagent"
+  ) {
     return value;
   }
 

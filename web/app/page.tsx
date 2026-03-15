@@ -120,23 +120,29 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid cols-3">
-          <section className="metric-card attention">
-            <p className="eyebrow">Attention</p>
+          <Link href="/sessions?state=attention" className="metric-card attention interactive-card">
+            <p className="eyebrow">Needs attention</p>
             <div className="metric large">{attentionSessions.length}</div>
-            <p className="muted">Aborted, compacted, or subagent-heavy sessions.</p>
-          </section>
+            <p className="muted">
+              Click to see all aborted, compacted, or subagent-heavy sessions.
+            </p>
+          </Link>
           <section className="metric-card calm">
             <p className="eyebrow">High context</p>
             <div className="metric large">{highContextSessions}</div>
-            <p className="muted">Sessions already at or above 200k context tokens.</p>
+            <p className="muted">
+              Sessions at or above 200k context tokens.
+            </p>
           </section>
-          <section className="metric-card warm">
+          <Link href="/maintenance" className="metric-card warm interactive-card">
             <p className="eyebrow">Maintenance risk</p>
             <div className="metric large">
               {maintenance.data ? maintenance.data.totals.wouldMutateStores : "n/a"}
             </div>
-            <p className="muted">Stores that would change if cleanup were enforced.</p>
-          </section>
+            <p className="muted">
+              Click to inspect stores that would change if cleanup were enforced.
+            </p>
+          </Link>
         </div>
       </section>
 
