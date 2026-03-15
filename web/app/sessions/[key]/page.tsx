@@ -1,16 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatTokenCount } from "../../../lib/normalizers";
+import { formatTokenCount, type ToolTraceEntry } from "../../../lib/normalizers";
 import { getSessionDetailResponse } from "../../../lib/session-adapter";
 
 export const dynamic = "force-dynamic";
+
+type DetailTab = "transcript" | "tools";
+type ToolTraceStatusFilter = "all" | ToolTraceEntry["status"];
+type DetailSearchParams = {
+  tab?: string | string[];
+  status?: string | string[];
+  tool?: string | string[];
+};
 
 export default async function SessionDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<DetailSearchParams>;
 }) {
   const [{ key }, resolvedSearchParams] = await Promise.all([params, searchParams]);
   const { data: session, meta } = await getSessionDetailResponse(key);
@@ -19,8 +27,24 @@ export default async function SessionDetailPage({
     notFound();
   }
 
-  const currentTab = resolvedSearchParams.tab === "tools" ? "tools" : "transcript";
+  const currentTab = normalizeTab(firstString(resolvedSearchParams.tab));
+  const statusFilter = normalizeStatusFilter(firstString(resolvedSearchParams.status));
+  const toolFilter = normalizeToolFilter(firstString(resolvedSearchParams.tool));
   const baseHref = session.href;
+  const toolOptions = Array.from(
+    new Set(session.toolTrace.map((trace) => trace.toolName)),
+  ).sort((left, right) => left.localeCompare(right));
+  const filteredToolTrace = session.toolTrace.filter((trace) => {
+    if (statusFilter !== "all" && trace.status !== statusFilter) {
+      return false;
+    }
+
+    if (toolFilter !== "all" && trace.toolName !== toolFilter) {
+      return false;
+    }
+
+    return true;
+  });
   const completedToolCalls = session.toolTrace.filter(
     (trace) => trace.status === "completed",
   ).length;
@@ -128,13 +152,17 @@ export default async function SessionDetailPage({
       <section className="card stack">
         <div className="tab-row">
           <Link
-            href={baseHref}
+            href={buildDetailHref(baseHref, { tab: "transcript" })}
             className={`tab-link ${currentTab === "transcript" ? "active" : ""}`}
           >
             Transcript
           </Link>
           <Link
-            href={`${baseHref}?tab=tools`}
+            href={buildDetailHref(baseHref, {
+              tab: "tools",
+              status: statusFilter,
+              tool: toolFilter,
+            })}
             className={`tab-link ${currentTab === "tools" ? "active" : ""}`}
           >
             Tool trace
@@ -153,49 +181,104 @@ export default async function SessionDetailPage({
               </p>
             </div>
 
-            <div className="grid cols-3">
+            <div className="grid cols-2">
               <section className="card stack">
-                <p className="eyebrow">Calls</p>
-                <div className="metric">{session.toolTrace.length}</div>
-                <p className="muted">Derived tool traces in this session.</p>
+                <p className="eyebrow">Status filter</p>
+                <div className="badge-row">
+                  {(["all", "completed", "pending", "orphan-result"] as const).map((status) => (
+                    <Link
+                      key={status}
+                      href={buildDetailHref(baseHref, {
+                        tab: "tools",
+                        status,
+                        tool: toolFilter,
+                      })}
+                      className={`tab-link ${statusFilter === status ? "active" : ""}`}
+                    >
+                      {statusLabel(status)}
+                    </Link>
+                  ))}
+                </div>
               </section>
+
+              <section className="card stack">
+                <p className="eyebrow">Tool filter</p>
+                <div className="badge-row">
+                  <Link
+                    href={buildDetailHref(baseHref, {
+                      tab: "tools",
+                      status: statusFilter,
+                      tool: "all",
+                    })}
+                    className={`tab-link ${toolFilter === "all" ? "active" : ""}`}
+                  >
+                    All tools
+                  </Link>
+                  {toolOptions.map((toolName) => (
+                    <Link
+                      key={toolName}
+                      href={buildDetailHref(baseHref, {
+                        tab: "tools",
+                        status: statusFilter,
+                        tool: toolName,
+                      })}
+                      className={`tab-link ${toolFilter === toolName ? "active" : ""}`}
+                    >
+                      {toolName}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="grid cols-2">
               <section className="card stack">
                 <p className="eyebrow">Completed</p>
                 <div className="metric">{completedToolCalls}</div>
                 <p className="muted">Calls with a matched tool result.</p>
               </section>
               <section className="card stack">
-                <p className="eyebrow">Open / orphan</p>
-                <div className="metric">{pendingToolCalls + orphanResults}</div>
-                <p className="muted">Pending calls or result-only records.</p>
+                <p className="eyebrow">Waiting for result</p>
+                <div className="metric">{pendingToolCalls}</div>
+                <p className="muted">Tool calls seen without a result yet.</p>
+              </section>
+              <section className="card stack">
+                <p className="eyebrow">Result-only</p>
+                <div className="metric">{orphanResults}</div>
+                <p className="muted">Tool results that could not be matched to a call.</p>
+              </section>
+              <section className="card stack">
+                <p className="eyebrow">Visible</p>
+                <div className="metric">{filteredToolTrace.length}</div>
+                <p className="muted">Tool traces matching the current filters.</p>
               </section>
             </div>
 
             <div className="list">
-              {session.toolTrace.length === 0 ? (
+              {filteredToolTrace.length === 0 ? (
                 <div className="empty-state">
-                  <h3>No tool activity detected</h3>
+                  <h3>No tool traces match the current filters</h3>
                   <p className="muted">
-                    This session detail did not surface any tool calls from the
-                    currently loaded transcript source.
+                    Try switching status or tool filters to widen the current
+                    view.
                   </p>
+                  <div className="badge-row">
+                    <Link
+                      href={buildDetailHref(baseHref, { tab: "tools" })}
+                      className="tab-link active"
+                    >
+                      Reset filters
+                    </Link>
+                  </div>
                 </div>
               ) : (
-                session.toolTrace.map((trace) => (
+                filteredToolTrace.map((trace) => (
                   <article key={`${trace.toolName}-${trace.index}`} className="tool-trace-card">
                     <div className="badge-row">
                       <span className="badge">#{trace.index + 1}</span>
                       <span className="badge">{trace.toolName}</span>
-                      <span
-                        className={`badge ${
-                          trace.status === "completed"
-                            ? "good"
-                            : trace.status === "pending"
-                              ? "warn"
-                              : "bad"
-                        }`}
-                      >
-                        {trace.status}
+                      <span className={`badge ${statusTone(trace.status)}`}>
+                        {statusLabel(trace.status)}
                       </span>
                       {trace.startedAt ? <span className="badge">start: {trace.startedAt}</span> : null}
                       {trace.finishedAt ? <span className="badge">finish: {trace.finishedAt}</span> : null}
@@ -260,7 +343,17 @@ export default async function SessionDetailPage({
                     <span className="badge">#{message.index + 1}</span>
                     <span className="badge">{message.role}</span>
                     <span className="badge">{message.messageType}</span>
-                    {message.toolName ? <span className="badge">{message.toolName}</span> : null}
+                    {message.toolName ? (
+                      <Link
+                        href={buildDetailHref(baseHref, {
+                          tab: "tools",
+                          tool: message.toolName,
+                        })}
+                        className="tab-link"
+                      >
+                        {message.toolName}
+                      </Link>
+                    ) : null}
                     {message.timestamp ? (
                       <span className="badge">{message.timestamp}</span>
                     ) : null}
@@ -278,4 +371,61 @@ export default async function SessionDetailPage({
       </section>
     </div>
   );
+}
+
+function firstString(value?: string | string[]): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeTab(value?: string): DetailTab {
+  return value === "tools" ? "tools" : "transcript";
+}
+
+function normalizeStatusFilter(value?: string): ToolTraceStatusFilter {
+  return value === "completed" || value === "pending" || value === "orphan-result"
+    ? value
+    : "all";
+}
+
+function normalizeToolFilter(value?: string): string {
+  return value?.trim() ? value : "all";
+}
+
+function buildDetailHref(
+  baseHref: string,
+  options: {
+    tab?: DetailTab;
+    status?: ToolTraceStatusFilter;
+    tool?: string;
+  },
+): string {
+  const search = new URLSearchParams();
+
+  if (options.tab && options.tab !== "transcript") {
+    search.set("tab", options.tab);
+  }
+
+  if (options.status && options.status !== "all") {
+    search.set("status", options.status);
+  }
+
+  if (options.tool && options.tool !== "all") {
+    search.set("tool", options.tool);
+  }
+
+  const query = search.toString();
+  return query ? `${baseHref}?${query}` : baseHref;
+}
+
+function statusLabel(status: ToolTraceStatusFilter): string {
+  if (status === "completed") return "Completed";
+  if (status === "pending") return "Waiting for result";
+  if (status === "orphan-result") return "Result-only";
+  return "All statuses";
+}
+
+function statusTone(status: ToolTraceEntry["status"]): "good" | "warn" | "bad" {
+  if (status === "completed") return "good";
+  if (status === "pending") return "warn";
+  return "bad";
 }
