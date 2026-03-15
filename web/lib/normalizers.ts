@@ -160,6 +160,7 @@ export function createAdapterDescriptor(options?: {
   label?: string;
   source?: string;
   stubbed?: boolean;
+  localOnly?: boolean;
   notes?: string[];
 }): AdapterDescriptor {
   const mode = options?.mode ?? "mock";
@@ -215,7 +216,7 @@ export function createAdapterDescriptor(options?: {
     source: options?.source ?? base.source,
     readOnly: true,
     stubbed: options?.stubbed ?? base.stubbed,
-    localOnly: true,
+    localOnly: options?.localOnly ?? base.localOnly,
     nextModes: base.nextModes,
     notes,
   };
@@ -229,7 +230,9 @@ export function buildResponseMeta(
     adapter.mode === "mock"
       ? "This endpoint is powered by a local adapter stub. The response contract is meant to stay stable when the backing source moves to OpenClaw CLI or Gateway data."
       : adapter.mode === "gateway"
-        ? "This endpoint is backed by a live local OpenClaw Gateway call, normalized into Inspector-friendly shapes."
+        ? adapter.localOnly
+          ? "This endpoint is backed by a live local OpenClaw Gateway call, normalized into Inspector-friendly shapes."
+          : "This endpoint is backed by a remote OpenClaw Gateway call, normalized into Inspector-friendly shapes."
         : "This endpoint is backed by live local OpenClaw CLI JSON output, normalized into Inspector-friendly shapes.";
 
   return {

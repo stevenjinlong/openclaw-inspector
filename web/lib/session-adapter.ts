@@ -4,6 +4,12 @@ import { execFile } from "node:child_process";
 import { constants as fsConstants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 
+import {
+  appendGatewayConnectionArgs,
+  buildInspectorSourcePlan,
+  type GatewayTargetConfig,
+  getInspectorSettings,
+} from "./inspector-settings";
 import { mockSessions } from "./mock-data";
 import {
   buildResponseMeta,
@@ -33,8 +39,6 @@ const MAX_BUFFER_BYTES = 20 * 1024 * 1024;
 const SESSION_SOURCE_TTL_MS = 5000;
 const TRANSCRIPT_TTL_MS = 5000;
 const MODEL_INSIGHTS_TTL_MS = 10000;
-
-type SourcePreference = "auto" | AdapterMode;
 
 interface HealthResponse {
   ok: true;
@@ -67,6 +71,9 @@ interface SourceResolution {
   adapter: AdapterDescriptor;
   rawSessions: RuntimeSessionLike[];
   warnings: string[];
+  gatewayTarget: GatewayTargetConfig | null;
+  allowLocalTranscriptFallback: boolean;
+  cacheKey: string;
 }
 
 interface TranscriptResolution {
@@ -88,7 +95,7 @@ export async function getHealthResponse(): Promise<HealthResponse> {
       {
         name: "session-source",
         status: "ok",
-        detail: `Serving ${resolved.rawSessions.length} normalized sessions from ${resolved.adapter.mode}.`,
+        detail: `Serving ${resolved.rawSessions.length} normalized sessions from ${resolved.adapter.label}.`,
       },
       ...(resolved.warnings.length > 0
         ? [
@@ -157,8 +164,17 @@ export async function getSessionDetail(
 
   const transcriptPath = inferTranscriptPath(runtimeSession);
   const [transcript, modelInsights] = await Promise.all([
-    resolveTranscript(runtimeSession.key, transcriptPath),
-    resolveModelInsights(transcriptPath, runtimeSession.model ?? "unknown", runtimeSession.modelProvider ?? null),
+    resolveTranscript(runtimeSession.key, transcriptPath, {
+      cacheKey: resolved.cacheKey,
+      gatewayTarget: resolved.gatewayTarget,
+      allowLocalTranscriptFallback: resolved.allowLocalTranscriptFallback,
+    }),
+    resolveModelInsights(
+      resolved.allowLocalTranscriptFallback ? transcriptPath : null,
+      runtimeSession.model ?? "unknown",
+      runtimeSession.modelProvider ?? null,
+      resolved.cacheKey,
+    ),
   ]);
 
   return normalizeRuntimeSessionDetail({
@@ -207,8 +223,17 @@ export async function getSessionDetailResponse(
 
   const transcriptPath = inferTranscriptPath(runtimeSession);
   const [transcript, modelInsights] = await Promise.all([
-    resolveTranscript(runtimeSession.key, transcriptPath),
-    resolveModelInsights(transcriptPath, runtimeSession.model ?? "unknown", runtimeSession.modelProvider ?? null),
+    resolveTranscript(runtimeSession.key, transcriptPath, {
+      cacheKey: resolved.cacheKey,
+      gatewayTarget: resolved.gatewayTarget,
+      allowLocalTranscriptFallback: resolved.allowLocalTranscriptFallback,
+    }),
+    resolveModelInsights(
+      resolved.allowLocalTranscriptFallback ? transcriptPath : null,
+      runtimeSession.model ?? "unknown",
+      runtimeSession.modelProvider ?? null,
+      resolved.cacheKey,
+    ),
   ]);
   const data = normalizeRuntimeSessionDetail({
     session: runtimeSession,
@@ -230,50 +255,50 @@ export async function getSessionDetailResponse(
 }
 
 async function resolveSessionSource(): Promise<SourceResolution> {
-  const preference = getSourcePreference();
+  const settings = await getInspectorSettings();
+  const plan = buildInspectorSourcePlan(settings);
 
   return withRuntimeCache(
-    `session-source:${preference}`,
+    `session-source:${plan.cacheKey}`,
     SESSION_SOURCE_TTL_MS,
     async () => {
       const warnings: string[] = [];
 
-      const attemptOrder =
-        preference === "mock"
-          ? (["mock"] as const)
-          : preference === "gateway"
-            ? (["gateway", "cli", "mock"] as const)
-            : preference === "cli"
-              ? (["cli", "gateway", "mock"] as const)
-              : (["gateway", "cli", "mock"] as const);
-
-      for (const mode of attemptOrder) {
-        if (mode === "gateway") {
+      for (const attempt of plan.attempts) {
+        if (attempt.mode === "gateway") {
           try {
-            const payload = await runOpenClawJson([
-              "gateway",
-              "call",
-              "sessions.list",
-              "--params",
-              JSON.stringify({ limit: DEFAULT_SESSION_LIMIT }),
-            ]);
+            const payload = await runOpenClawJson(
+              appendGatewayConnectionArgs(
+                [
+                  "gateway",
+                  "call",
+                  "sessions.list",
+                  "--params",
+                  JSON.stringify({ limit: DEFAULT_SESSION_LIMIT }),
+                ],
+                attempt.gateway,
+              ),
+            );
 
             const rawSessions = ensureArray<RuntimeSessionLike>(payload.sessions);
 
             return {
-              mode: "gateway",
-              adapter: createAdapterDescriptor({ mode: "gateway" }),
+              mode: "gateway" as const,
+              adapter: gatewayAdapterDescriptor(attempt.gateway),
               rawSessions,
               warnings,
+              gatewayTarget: attempt.gateway,
+              allowLocalTranscriptFallback: attempt.allowLocalTranscriptFallback,
+              cacheKey: plan.cacheKey,
             };
           } catch (error) {
-            warnings.push(`Gateway sessions.list unavailable: ${errorMessage(error)}`);
+            warnings.push(`${attempt.label} sessions.list unavailable: ${errorMessage(error)}`);
           }
 
           continue;
         }
 
-        if (mode === "cli") {
+        if (attempt.mode === "cli") {
           try {
             const payload = await runOpenClawJson(["sessions", "--all-agents", "--json"]);
             const rawSessions = ensureArray<RuntimeSessionLike>(payload.sessions).slice(
@@ -282,10 +307,13 @@ async function resolveSessionSource(): Promise<SourceResolution> {
             );
 
             return {
-              mode: "cli",
+              mode: "cli" as const,
               adapter: createAdapterDescriptor({ mode: "cli" }),
               rawSessions,
               warnings,
+              gatewayTarget: null,
+              allowLocalTranscriptFallback: true,
+              cacheKey: plan.cacheKey,
             };
           } catch (error) {
             warnings.push(`CLI sessions --all-agents --json unavailable: ${errorMessage(error)}`);
@@ -295,7 +323,7 @@ async function resolveSessionSource(): Promise<SourceResolution> {
         }
 
         return {
-          mode: "mock",
+          mode: "mock" as const,
           adapter: createAdapterDescriptor({
             mode: "mock",
             notes: [
@@ -305,14 +333,20 @@ async function resolveSessionSource(): Promise<SourceResolution> {
           }),
           rawSessions: [],
           warnings,
+          gatewayTarget: null,
+          allowLocalTranscriptFallback: false,
+          cacheKey: plan.cacheKey,
         };
       }
 
       return {
-        mode: "mock",
+        mode: "mock" as const,
         adapter: createAdapterDescriptor({ mode: "mock" }),
         rawSessions: [],
         warnings,
+        gatewayTarget: null,
+        allowLocalTranscriptFallback: false,
+        cacheKey: plan.cacheKey,
       };
     },
   );
@@ -321,33 +355,45 @@ async function resolveSessionSource(): Promise<SourceResolution> {
 async function resolveTranscript(
   sessionKey: string,
   transcriptPath: string | null,
+  options: {
+    cacheKey: string;
+    gatewayTarget: GatewayTargetConfig | null;
+    allowLocalTranscriptFallback: boolean;
+  },
 ): Promise<TranscriptResolution> {
   return withRuntimeCache(
-    `transcript:${sessionKey}:${transcriptPath ?? "none"}`,
+    `transcript:${options.cacheKey}:${sessionKey}:${transcriptPath ?? "none"}`,
     TRANSCRIPT_TTL_MS,
     async () => {
       const warnings: string[] = [];
 
-      try {
-        const payload = await runOpenClawJson([
-          "gateway",
-          "call",
-          "chat.history",
-          "--params",
-          JSON.stringify({ sessionKey, limit: DEFAULT_HISTORY_LIMIT }),
-        ]);
+      if (options.gatewayTarget) {
+        try {
+          const payload = await runOpenClawJson(
+            appendGatewayConnectionArgs(
+              [
+                "gateway",
+                "call",
+                "chat.history",
+                "--params",
+                JSON.stringify({ sessionKey, limit: DEFAULT_HISTORY_LIMIT }),
+              ],
+              options.gatewayTarget,
+            ),
+          );
 
-        return {
-          source: "gateway",
-          messages: ensureArray<RuntimeTranscriptMessage>(payload.messages),
-          hasCompaction: false,
-          warnings,
-        };
-      } catch (error) {
-        warnings.push(`Gateway chat.history unavailable: ${errorMessage(error)}`);
+          return {
+            source: "gateway",
+            messages: ensureArray<RuntimeTranscriptMessage>(payload.messages),
+            hasCompaction: false,
+            warnings,
+          };
+        } catch (error) {
+          warnings.push(`Gateway chat.history unavailable: ${errorMessage(error)}`);
+        }
       }
 
-      if (transcriptPath) {
+      if (options.allowLocalTranscriptFallback && transcriptPath) {
         try {
           const local = await readTranscriptFromFile(transcriptPath);
 
@@ -380,13 +426,14 @@ async function resolveModelInsights(
   transcriptPath: string | null,
   summaryModel: string,
   summaryProvider: string | null,
+  cacheKey: string,
 ): Promise<SessionModelInsights | null> {
   if (!transcriptPath) {
     return null;
   }
 
   return withRuntimeCache(
-    `model-insights:${transcriptPath}:${summaryModel}:${summaryProvider ?? "none"}`,
+    `model-insights:${cacheKey}:${transcriptPath}:${summaryModel}:${summaryProvider ?? "none"}`,
     MODEL_INSIGHTS_TTL_MS,
     async () => {
       await access(transcriptPath, fsConstants.R_OK);
@@ -427,7 +474,8 @@ async function resolveModelInsights(
         snapshotCount += 1;
         latestModel = modelId;
         latestProvider = provider;
-        latestTimestamp = formatOptionalTimestamp(parsed.data?.timestamp ?? parsed.timestamp) ?? latestTimestamp;
+        latestTimestamp =
+          formatOptionalTimestamp(parsed.data?.timestamp ?? parsed.timestamp) ?? latestTimestamp;
         variants.add(`${provider ?? "unknown"}::${modelId}`);
       }
 
@@ -484,14 +532,25 @@ async function readTranscriptFromFile(path: string): Promise<{
   };
 }
 
-function getSourcePreference(): SourcePreference {
-  const raw = process.env.OPENCLAW_INSPECTOR_SOURCE_MODE?.trim().toLowerCase();
-
-  if (raw === "mock" || raw === "cli" || raw === "gateway") {
-    return raw;
-  }
-
-  return "auto";
+function gatewayAdapterDescriptor(gateway: GatewayTargetConfig): AdapterDescriptor {
+  const remote = gateway.kind === "remote";
+  return createAdapterDescriptor({
+    mode: "gateway",
+    label: remote ? "Remote Gateway adapter" : "Local Gateway adapter",
+    source: remote
+      ? `Normalized output from remote \`openclaw gateway call --url ${gateway.url ?? "<configured>"} ...\``
+      : "Normalized output from local `openclaw gateway call ...`",
+    localOnly: !remote,
+    notes: remote
+      ? [
+          "Primary source is a configured remote OpenClaw Gateway.",
+          "Transcript reads come from remote Gateway RPC; local transcript fallback is disabled in remote mode.",
+        ]
+      : [
+          "Primary source is a running local OpenClaw Gateway.",
+          "If Gateway history is unavailable, transcript fallback can use local transcript files when present.",
+        ],
+  });
 }
 
 function maybeDecodeURIComponent(value: string) {
