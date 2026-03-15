@@ -52,7 +52,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="stack dashboard-shell">
-      <section className="hero-card hero-card-minimal hero-card-horizontal">
+      <section className="hero-card hero-card-minimal hero-card-stacked">
         <div className="hero-main stack">
           <p className="eyebrow">OpenClaw Inspector</p>
           <h2 className="hero-title">
@@ -64,8 +64,17 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <div className="hero-side stack">
-          <div className="hero-inline-stats hero-inline-stats-grid">
+        <div className="hero-footer-row">
+          <div className="hero-actions badge-row">
+            <Link href="/sessions" className="primary-action">
+              Explore sessions
+            </Link>
+            <Link href="/maintenance" className="secondary-action">
+              Maintenance preview
+            </Link>
+          </div>
+
+          <div className="hero-inline-stats hero-inline-stats-inline">
             <div className="hero-inline-stat">
               <strong>{totalSessions}</strong>
               <span className="muted">sessions</span>
@@ -82,15 +91,6 @@ export default async function DashboardPage() {
               <strong>{attentionSessions.length}</strong>
               <span className="muted">need attention</span>
             </div>
-          </div>
-
-          <div className="hero-actions badge-row">
-            <Link href="/sessions" className="primary-action">
-              Explore sessions
-            </Link>
-            <Link href="/maintenance" className="secondary-action">
-              Maintenance preview
-            </Link>
           </div>
         </div>
       </section>
