@@ -174,3 +174,43 @@ export function AlertTriangleIcon(props: IconProps) {
     </SvgIcon>
   );
 }
+
+export function BookmarkIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M7 4.5h10a1.5 1.5 0 0 1 1.5 1.5v13L12 15.5 5.5 19V6A1.5 1.5 0 0 1 7 4.5Z" />
+    </SvgIcon>
+  );
+}
+
+export function CopyIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <rect x="9" y="9" width="10" height="10" rx="2" />
+      <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" />
+    </SvgIcon>
+  );
+}
+
+export function MonitorIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <rect x="3.5" y="5" width="17" height="11" rx="2" />
+      <path d="M9 19h6" />
+      <path d="M12 16v3" />
+      <path d="M7 10.5h2.5l1.4-2.5 2.2 5 1.5-2.5H17" />
+    </SvgIcon>
+  );
+}
+
+export function NetworkIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <circle cx="6" cy="12" r="2.2" />
+      <circle cx="18" cy="7" r="2.2" />
+      <circle cx="18" cy="17" r="2.2" />
+      <path d="M8 11 16 8" />
+      <path d="M8 13 16 16" />
+    </SvgIcon>
+  );
+}

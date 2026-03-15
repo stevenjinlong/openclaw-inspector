@@ -10,11 +10,24 @@ import {
   type SessionSummaryRecord,
 } from "../lib/normalizers";
 import {
+  buildSessionsHref,
+  loadPinnedSessions,
+  loadSavedViews,
+  savePinnedSessions,
+  saveSavedViews,
+  type SavedViewRecord,
+} from "../lib/personalization";
+import {
   ActivityIcon,
   ArrowRightIcon,
+  BookmarkIcon,
   ClockIcon,
+  DatabaseIcon,
   PauseCircleIcon,
   SearchIcon,
+  SessionsIcon,
+  ShieldIcon,
+  SparklesIcon,
 } from "./ui-icons";
 
 type KindFilter = "all" | SessionKind;
@@ -40,6 +53,8 @@ export function SessionsExplorer({
   const [kindFilter, setKindFilter] = useState<KindFilter>(initialKind);
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>(initialChannel);
   const [stateFilter, setStateFilter] = useState<StateFilter>(initialState);
+  const [pinnedKeys, setPinnedKeys] = useState<string[]>([]);
+  const [savedViews, setSavedViews] = useState<SavedViewRecord[]>([]);
 
   const allKinds = useMemo(
     () => Array.from(new Set(sessions.map((session) => session.kind))).sort(),
@@ -129,6 +144,11 @@ export function SessionsExplorer({
   const sessionEnd = Math.min(sessionPage * sessionPageSize, filteredSessions.length);
 
   useEffect(() => {
+    setPinnedKeys(loadPinnedSessions());
+    setSavedViews(loadSavedViews());
+  }, []);
+
+  useEffect(() => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
 
@@ -164,6 +184,58 @@ export function SessionsExplorer({
   useEffect(() => {
     setSessionPage((current) => Math.min(Math.max(current, 1), sessionPageCount));
   }, [sessionPageCount]);
+
+  function togglePinned(key: string) {
+    setPinnedKeys((current) => {
+      const next = current.includes(key)
+        ? current.filter((value) => value !== key)
+        : [key, ...current];
+      savePinnedSessions(next);
+      return next;
+    });
+  }
+
+  function saveCurrentView() {
+    const suggestedName = buildViewName(query, kindFilter, channelFilter, stateFilter);
+    const name = window.prompt("Save this filter view as:", suggestedName)?.trim();
+
+    if (!name) {
+      return;
+    }
+
+    setSavedViews((current) => {
+      const next: SavedViewRecord[] = [
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name,
+          q: query,
+          kind: kindFilter,
+          channel: channelFilter,
+          state: stateFilter,
+          createdAt: Date.now(),
+        },
+        ...current,
+      ];
+      saveSavedViews(next);
+      return next;
+    });
+  }
+
+  function applySavedView(view: SavedViewRecord) {
+    setQuery(view.q);
+    setKindFilter(view.kind as KindFilter);
+    setChannelFilter(view.channel as ChannelFilter);
+    setStateFilter(view.state as StateFilter);
+    setSessionPage(1);
+  }
+
+  function removeSavedView(id: string) {
+    setSavedViews((current) => {
+      const next = current.filter((view) => view.id !== id);
+      saveSavedViews(next);
+      return next;
+    });
+  }
 
   return (
     <>
@@ -267,7 +339,16 @@ export function SessionsExplorer({
         </div>
 
         <section className="card stack surface-soft">
-          <p className="eyebrow">State</p>
+          <div className="detail-panel-header">
+            <div>
+              <p className="eyebrow">State</p>
+              <h3>Session slices</h3>
+            </div>
+            <button type="button" className="secondary-action" onClick={saveCurrentView}>
+              <BookmarkIcon className="icon icon-sm" />
+              Save current view
+            </button>
+          </div>
           <div className="badge-row">
             {([
               ["all", "All states"],
@@ -286,6 +367,36 @@ export function SessionsExplorer({
               </button>
             ))}
           </div>
+        </section>
+
+        <section className="card stack surface-soft">
+          <div className="detail-panel-header">
+            <div>
+              <p className="eyebrow">Saved views</p>
+              <h3>Reusable filters and shortcuts</h3>
+            </div>
+            <span className="badge">{savedViews.length}</span>
+          </div>
+          {savedViews.length === 0 ? (
+            <p className="muted">Save your current filter combination and it will appear here.</p>
+          ) : (
+            <div className="badge-row">
+              {savedViews.map((view) => (
+                <div key={view.id} className="saved-view-chip">
+                  <button type="button" className="tab-link active" onClick={() => applySavedView(view)}>
+                    <BookmarkIcon className="icon icon-sm" />
+                    {view.name}
+                  </button>
+                  <Link href={buildSessionsHref(view)} className="detail-filter-chip">
+                    Open
+                  </Link>
+                  <button type="button" className="detail-filter-chip" onClick={() => removeSavedView(view.id)}>
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </section>
 
@@ -374,12 +485,24 @@ export function SessionsExplorer({
                     <p className="muted mono session-key">{session.key}</p>
                   </div>
                   <div className="badge-row">
-                    <span className="badge">{session.kind}</span>
-                    <span className="badge">{session.model}</span>
+                    <span className="badge meta-badge meta-badge-kind">
+                      <SessionsIcon className="icon icon-sm" />
+                      {session.kind}
+                    </span>
+                    <span className="badge meta-badge meta-badge-model">
+                      <SparklesIcon className="icon icon-sm" />
+                      {session.model}
+                    </span>
                     {session.modelProvider ? (
-                      <span className="badge">provider: {session.modelProvider}</span>
+                      <span className="badge meta-badge meta-badge-provider">
+                        <DatabaseIcon className="icon icon-sm" />
+                        provider: {session.modelProvider}
+                      </span>
                     ) : null}
-                    <span className="badge">source: {session.dataSource}</span>
+                    <span className="badge meta-badge meta-badge-source">
+                      <ShieldIcon className="icon icon-sm" />
+                      source: {session.dataSource}
+                    </span>
                     {session.status.hasCompaction ? (
                       <span className="badge warn">compacted</span>
                     ) : null}
@@ -393,6 +516,16 @@ export function SessionsExplorer({
                 </div>
 
                 <div className="session-side">
+                  <div className="badge-row session-actions-row">
+                    <button
+                      type="button"
+                      className={`secondary-action pin-session-button ${pinnedKeys.includes(session.key) ? "active" : ""}`}
+                      onClick={() => togglePinned(session.key)}
+                    >
+                      <BookmarkIcon className="icon icon-sm" />
+                      {pinnedKeys.includes(session.key) ? "Pinned" : "Pin"}
+                    </button>
+                  </div>
                   <div className="session-stats-grid">
                     <span className="muted">Updated</span>
                     <span>{session.updatedAt}</span>
@@ -415,6 +548,16 @@ export function SessionsExplorer({
       </section>
     </>
   );
+}
+
+function buildViewName(
+  query: string,
+  kind: KindFilter,
+  channel: ChannelFilter,
+  state: StateFilter,
+): string {
+  const parts = [query.trim() || null, kind !== "all" ? kind : null, channel !== "all" ? channel : null, state !== "all" ? state : null].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "Custom view";
 }
 
 function classifySummaryStatus(

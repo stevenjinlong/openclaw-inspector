@@ -14,6 +14,7 @@ import {
   SessionsIcon,
   SparklesIcon,
 } from "../components/ui-icons";
+import { DashboardLocalPanels } from "../components/dashboard-local-panels";
 
 export const dynamic = "force-dynamic";
 
@@ -371,6 +372,8 @@ export default async function DashboardPage() {
           </section>
         </div>
       </section>
+
+      <DashboardLocalPanels sessions={sessions} />
 
       <section className="dashboard-section stack">
         <div className="section-heading">
