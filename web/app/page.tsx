@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getHealthResponse, listSessions } from "../lib/session-adapter";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const [health, sessions] = await Promise.all([
     getHealthResponse(),
@@ -22,9 +24,8 @@ export default async function DashboardPage() {
           <p className="eyebrow">Dashboard</p>
           <h2>OpenClaw Inspector</h2>
           <p className="muted">
-            Early shell for session observability. The UI now reads through a
-            local adapter layer and route handlers, while the underlying source
-            remains explicit mock data.
+            The app now prefers live local OpenClaw session data, normalized
+            into a stable contract for the UI.
           </p>
         </div>
         <Link href="/sessions" className="badge">
@@ -37,31 +38,42 @@ export default async function DashboardPage() {
           <span className="badge">Adapter: {health.adapter.label}</span>
           <span className="badge">Route: GET /api/health</span>
           <span className="badge">Route: GET /api/sessions</span>
-          <span className="badge warn">Mock source</span>
+          {health.adapter.stubbed ? (
+            <span className="badge warn">Stubbed fallback</span>
+          ) : (
+            <span className="badge good">Live local data</span>
+          )}
           <span className="badge">Read-only</span>
         </div>
         <p className="muted">
           Health is {health.checks[0]?.status ?? "unknown"}. This milestone is
-          about stabilizing the contract between UI and backend before swapping
-          the source to OpenClaw CLI JSON or Gateway-backed data.
+          about replacing fake session data with real OpenClaw visibility while
+          keeping the product safely read-only.
         </p>
+        {health.warnings.length ? (
+          <ul className="muted">
+            {health.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        ) : null}
       </section>
 
       <div className="grid cols-3">
         <section className="card">
           <p className="eyebrow">Sessions</p>
           <div className="metric">{activeSessions}</div>
-          <p className="muted">Visible sessions in the current adapter-backed sample set.</p>
+          <p className="muted">Visible sessions from the current local adapter source.</p>
         </section>
         <section className="card">
           <p className="eyebrow">Compactions</p>
           <div className="metric">{compactedCount}</div>
-          <p className="muted">Sessions with compaction markers in the normalized sample data.</p>
+          <p className="muted">Detected compaction markers from currently loaded session details.</p>
         </section>
         <section className="card">
           <p className="eyebrow">Aborted</p>
           <div className="metric">{abortedCount}</div>
-          <p className="muted">Sessions that need forensic attention first.</p>
+          <p className="muted">Sessions that deserve forensic attention first.</p>
         </section>
       </div>
 
@@ -72,7 +84,7 @@ export default async function DashboardPage() {
             <h3>Make runs explainable</h3>
           </div>
           <p className="muted">
-            OpenClaw already has session management, maintenance, compaction, and
+            OpenClaw already has sessions, maintenance, compaction, and
             subagents. Inspector exists to turn those invisible mechanics into
             something you can inspect and reason about quickly.
           </p>
@@ -90,9 +102,9 @@ export default async function DashboardPage() {
             <h3>First useful slice</h3>
           </div>
           <ol className="muted">
-            <li>Swap the mock adapter source to OpenClaw CLI JSON or Gateway reads</li>
-            <li>Expand the session detail view into transcript, tools, and stats tabs</li>
-            <li>Add maintenance preview backed by a dry-run endpoint</li>
+            <li>Keep the live session list stable</li>
+            <li>Expand session detail into transcript, tools, and stats tabs</li>
+            <li>Add maintenance preview backed by cleanup dry-run</li>
             <li>Layer in refresh controls and action safety rails</li>
           </ol>
         </section>

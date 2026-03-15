@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatTokenCount } from "../../../lib/normalizers";
 import { getSessionDetailResponse } from "../../../lib/session-adapter";
+
+export const dynamic = "force-dynamic";
 
 export default async function SessionDetailPage({
   params,
@@ -21,8 +24,9 @@ export default async function SessionDetailPage({
           <p className="eyebrow">Session detail</p>
           <h2>{session.displayName}</h2>
           <p className="muted">
-            Normalized detail view from the local adapter. Transcript entries
-            below are still sourced from mock sample data.
+            Read-only inspector view for one session. Transcript prefers live
+            Gateway history and falls back to local transcript files when
+            needed.
           </p>
         </div>
         <Link href="/sessions" className="badge">
@@ -36,6 +40,7 @@ export default async function SessionDetailPage({
           <span className="badge">{session.channel}</span>
           <span className="badge">{session.model}</span>
           <span className="badge">{meta.adapter.label}</span>
+          <span className="badge">transcript: {session.transcript.source}</span>
           {session.status.hasCompaction ? (
             <span className="badge warn">compacted</span>
           ) : null}
@@ -54,12 +59,14 @@ export default async function SessionDetailPage({
           <span className="mono">{session.apiPath}</span>
           <span className="muted">Updated</span>
           <span>{session.updatedAt}</span>
+          <span className="muted">Agent</span>
+          <span>{session.agentId ?? "unknown"}</span>
           <span className="muted">Context tokens</span>
-          <span>{session.tokens.context.toLocaleString()} tok</span>
+          <span>{formatTokenCount(session.tokens.context)}</span>
           <span className="muted">Total tokens</span>
-          <span>{session.tokens.total.toLocaleString()} tok</span>
+          <span>{formatTokenCount(session.tokens.total)}</span>
           <span className="muted">Transcript path</span>
-          <span className="mono">{session.transcript.path}</span>
+          <span className="mono">{session.transcript.path ?? "unavailable"}</span>
         </div>
       </section>
 
@@ -67,7 +74,7 @@ export default async function SessionDetailPage({
         <section className="card stack">
           <div>
             <p className="eyebrow">Adapter contract</p>
-            <h3>Read-only local-first seam</h3>
+            <h3>Local-first, read-only</h3>
           </div>
           <p className="muted">{meta.note}</p>
           <ul className="muted">
@@ -79,20 +86,30 @@ export default async function SessionDetailPage({
 
         <section className="card stack">
           <div>
-            <p className="eyebrow">Transcript source</p>
-            <h3>Mock for now, swappable later</h3>
+            <p className="eyebrow">Source health</p>
+            <h3>Adapter + transcript visibility</h3>
           </div>
-          <p className="muted">
-            The transcript shown here is intentionally honest about its source.
-            This milestone normalizes sample data first so the UI and API can
-            later swap to OpenClaw CLI or Gateway-backed reads without a page
-            rewrite.
-          </p>
           <div className="badge-row">
-            <span className="badge">Source: {session.transcript.source}</span>
-            <span className="badge">Read-only</span>
-            <span className="badge warn">Adapter stub</span>
+            <span className="badge">session source: {session.dataSource}</span>
+            <span className="badge">transcript source: {session.transcript.source}</span>
+            <span className="badge">read-only</span>
+            {meta.adapter.stubbed ? (
+              <span className="badge warn">stubbed</span>
+            ) : (
+              <span className="badge good">live local</span>
+            )}
           </div>
+          {meta.warnings?.length ? (
+            <ul className="muted">
+              {meta.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">
+              No adapter warnings for this request.
+            </p>
+          )}
         </section>
       </div>
 
@@ -101,8 +118,8 @@ export default async function SessionDetailPage({
           <p className="eyebrow">Transcript</p>
           <h3>Message flow</h3>
           <p className="muted">
-            Tool results are tagged and marked as collapsed-by-default candidates
-            for the future transcript UI.
+            Tool calls and tool results are now surfaced as separate transcript
+            entries, which is much closer to the final inspector experience.
           </p>
         </div>
 
@@ -115,6 +132,10 @@ export default async function SessionDetailPage({
               <div className="badge-row">
                 <span className="badge">#{message.index + 1}</span>
                 <span className="badge">{message.role}</span>
+                <span className="badge">{message.messageType}</span>
+                {message.timestamp ? (
+                  <span className="badge">{message.timestamp}</span>
+                ) : null}
                 {message.isCollapsedDefault ? (
                   <span className="badge warn">collapse later</span>
                 ) : null}

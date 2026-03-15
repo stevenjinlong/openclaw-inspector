@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 export default function MaintenancePage() {
   return (
     <div className="stack">
@@ -24,12 +26,11 @@ export default function MaintenancePage() {
           </ul>
         </article>
         <article className="card stack">
-          <p className="eyebrow">Safety posture</p>
+          <p className="eyebrow">Current milestone</p>
           <ul className="muted">
-            <li>Read-only by default</li>
-            <li>No enforce action until explicit opt-in</li>
-            <li>Every dangerous action gets confirmation and preview</li>
-            <li>Likely next route: GET /api/maintenance/preview</li>
+            <li>Real session list is wired first</li>
+            <li>Transcript fallback uses local transcript files when needed</li>
+            <li>Maintenance actions remain read-only and future-gated</li>
           </ul>
         </article>
       </section>

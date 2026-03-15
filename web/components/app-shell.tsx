@@ -31,16 +31,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-card stack">
           <div>
             <p className="eyebrow">Mode</p>
-            <strong>Local mock adapter</strong>
+            <strong>Local-first adapter</strong>
           </div>
           <p className="muted">
-            The app now exposes read-only route handlers and normalized adapter
-            responses. The backing data is still stubbed on purpose.
+            The app now tries live local OpenClaw data first: Gateway sessions,
+            Gateway chat history, then CLI / local transcript fallbacks.
           </p>
           <div className="badge-row">
             <span className="badge">GET /api/health</span>
             <span className="badge">GET /api/sessions</span>
-            <span className="badge warn">Mock source</span>
+            <span className="badge">GET /api/sessions/[key]</span>
           </div>
         </div>
       </aside>

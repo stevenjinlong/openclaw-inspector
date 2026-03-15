@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { formatTokenCount } from "../../lib/normalizers";
 import { listSessionsResponse } from "../../lib/session-adapter";
+
+export const dynamic = "force-dynamic";
 
 export default async function SessionsPage() {
   const { data: sessions, meta } = await listSessionsResponse();
@@ -11,9 +14,9 @@ export default async function SessionsPage() {
           <p className="eyebrow">Sessions</p>
           <h2>Explorer</h2>
           <p className="muted">
-            Planned MVP surface: search, filters, transcript inspection, tool
-            trace, and export. This page now renders the same normalized
-            contract exposed through <span className="mono">GET /api/sessions</span>.
+            MVP-first list view backed by a normalized adapter contract. This
+            milestone prefers live local OpenClaw data and falls back only when
+            needed.
           </p>
         </div>
         <span className="badge">{meta.adapter.label}</span>
@@ -24,9 +27,20 @@ export default async function SessionsPage() {
           <span className="badge">Count: {meta.count ?? sessions.length}</span>
           <span className="badge">Mode: {meta.adapter.mode}</span>
           <span className="badge">Read-only</span>
-          <span className="badge warn">Underlying data is mock</span>
+          {meta.adapter.stubbed ? (
+            <span className="badge warn">Stubbed fallback</span>
+          ) : (
+            <span className="badge good">Live local data</span>
+          )}
         </div>
         <p className="muted">{meta.note}</p>
+        {meta.warnings?.length ? (
+          <ul className="muted">
+            {meta.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        ) : null}
       </section>
 
       <section className="card stack">
@@ -47,6 +61,9 @@ export default async function SessionsPage() {
                 <div className="badge-row">
                   <span className="badge">{session.kind}</span>
                   <span className="badge">{session.model}</span>
+                  {session.modelProvider ? (
+                    <span className="badge">provider: {session.modelProvider}</span>
+                  ) : null}
                   <span className="badge">source: {session.dataSource}</span>
                   {session.status.hasCompaction ? (
                     <span className="badge warn">compacted</span>
@@ -65,9 +82,9 @@ export default async function SessionsPage() {
                   <span className="muted">Updated</span>
                   <span>{session.updatedAt}</span>
                   <span className="muted">Context</span>
-                  <span>{session.tokens.context.toLocaleString()} tok</span>
+                  <span>{formatTokenCount(session.tokens.context)}</span>
                   <span className="muted">Total</span>
-                  <span>{session.tokens.total.toLocaleString()} tok</span>
+                  <span>{formatTokenCount(session.tokens.total)}</span>
                   <span className="muted">API</span>
                   <span className="mono">{session.apiPath}</span>
                 </div>
