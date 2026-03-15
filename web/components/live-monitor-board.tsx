@@ -15,28 +15,44 @@ type LiveStatusPayload = {
 };
 
 export function LiveMonitorBoard({ sessions }: { sessions: SessionSummaryRecord[] }) {
-  const trackedSessions = useMemo(() => sessions.slice(0, 24), [sessions]);
+  const trackedSessions = useMemo(() => sessions.slice(0, 10), [sessions]);
   const [statusMap, setStatusMap] = useState<Record<string, LiveStatusPayload>>({});
   const [mode, setMode] = useState<"all" | "running" | "stuck">("all");
 
   useEffect(() => {
     let cancelled = false;
+    let controller: AbortController | null = null;
 
     async function pollStatuses() {
-      const updates = await Promise.all(
-        trackedSessions.map(async (session) => {
-          try {
-            const response = await fetch(`${session.apiPath}/status`);
-            if (!response.ok) return null;
-            const payload = (await response.json()) as LiveStatusPayload & { ok?: boolean };
-            return [session.key, payload] as const;
-          } catch {
-            return null;
-          }
-        }),
-      );
+      if (document.visibilityState === "hidden") {
+        return;
+      }
 
-      if (cancelled) {
+      controller?.abort();
+      controller = new AbortController();
+      const signal = controller.signal;
+
+      const updates: Array<readonly [string, LiveStatusPayload] | null> = [];
+
+      for (const session of trackedSessions) {
+        if (cancelled || signal.aborted) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`${session.apiPath}/status`, { signal, cache: "no-store" });
+          if (!response.ok) {
+            updates.push(null);
+            continue;
+          }
+          const payload = (await response.json()) as LiveStatusPayload & { ok?: boolean };
+          updates.push([session.key, payload] as const);
+        } catch {
+          updates.push(null);
+        }
+      }
+
+      if (cancelled || signal.aborted) {
         return;
       }
 
@@ -55,10 +71,11 @@ export function LiveMonitorBoard({ sessions }: { sessions: SessionSummaryRecord[
     }
 
     void pollStatuses();
-    const intervalId = window.setInterval(() => void pollStatuses(), 3000);
+    const intervalId = window.setInterval(() => void pollStatuses(), 5000);
 
     return () => {
       cancelled = true;
+      controller?.abort();
       window.clearInterval(intervalId);
     };
   }, [trackedSessions]);
@@ -88,7 +105,7 @@ export function LiveMonitorBoard({ sessions }: { sessions: SessionSummaryRecord[
           <span className="badge">Tracked sessions: {trackedSessions.length}</span>
           <span className="badge good">Running: {runningCount}</span>
           <span className="badge warn">Possibly stuck: {stuckCount}</span>
-          <span className="badge">Polling every 3s</span>
+          <span className="badge">Polling every 5s</span>
         </div>
         <div className="badge-row detail-tab-row">
           {(["all", "running", "stuck"] as const).map((value) => (
@@ -116,7 +133,7 @@ export function LiveMonitorBoard({ sessions }: { sessions: SessionSummaryRecord[
               const meta = getLiveMeta(status.statusCode);
               const Icon = meta.icon;
               return (
-                <Link key={session.key} href={session.href} className="session-row aligned-session-row">
+                <Link key={session.key} href={session.href} className="session-row aligned-session-row" prefetch={false}>
                   <div className="session-main">
                     <div className="session-main-head">
                       <p className="session-channel-label channel-tone-default">
