@@ -698,6 +698,18 @@ h1, h2, h3, h4, p {
   cursor: not-allowed;
 }
 
+.transcript-toolbar .detail-filter-chip {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text-soft);
+}
+
+.transcript-toolbar .detail-filter-chip.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
 .detail-panel-header {
   display: flex;
   justify-content: space-between;
@@ -717,8 +729,30 @@ h1, h2, h3, h4, p {
   gap: 14px;
   padding: 16px 18px;
   border-radius: 18px;
-  border: 1px solid var(--border);
-  background: var(--surface-soft);
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
+  box-shadow: var(--shadow-sm);
+}
+
+.transcript-toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.transcript-toolbar-meta {
+  gap: 8px;
+}
+
+.transcript-toolbar-pagination {
+  justify-content: flex-end;
+}
+
+.toolbar-page-badge {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-soft);
 }
 
 .polished-trace-card {

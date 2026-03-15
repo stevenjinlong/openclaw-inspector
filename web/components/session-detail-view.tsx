@@ -540,14 +540,14 @@ export function SessionDetailView({
             </div>
 
             <div className="transcript-toolbar">
-              <div className="badge-row">
-                <span className="badge">
+              <div className="badge-row transcript-toolbar-group transcript-toolbar-meta">
+                <span className="badge toolbar-page-badge">
                   Showing {transcriptStart}-{transcriptEnd} of {transcriptMessageCount}
                 </span>
-                <span className="badge">Page {transcriptPage} / {transcriptPageCount}</span>
+                <span className="badge toolbar-page-badge">Page {transcriptPage} / {transcriptPageCount}</span>
               </div>
 
-              <div className="badge-row">
+              <div className="badge-row transcript-toolbar-group">
                 {[12, 24, 48].map((size) => (
                   <button
                     key={size}
@@ -560,14 +560,14 @@ export function SessionDetailView({
                 ))}
               </div>
 
-              <div className="badge-row">
+              <div className="badge-row transcript-toolbar-group transcript-toolbar-pagination">
                 <button
                   type="button"
                   onClick={() => setTranscriptPage(1)}
                   className="detail-filter-chip"
                   disabled={transcriptPage === 1}
                 >
-                  First
+                  « First
                 </button>
                 <button
                   type="button"
@@ -575,7 +575,7 @@ export function SessionDetailView({
                   className="detail-filter-chip"
                   disabled={transcriptPage === 1}
                 >
-                  Previous
+                  ← Previous
                 </button>
                 <button
                   type="button"
@@ -583,7 +583,7 @@ export function SessionDetailView({
                   className="detail-filter-chip"
                   disabled={transcriptPage === transcriptPageCount}
                 >
-                  Next
+                  Next →
                 </button>
                 <button
                   type="button"
@@ -591,7 +591,7 @@ export function SessionDetailView({
                   className="detail-filter-chip"
                   disabled={transcriptPage === transcriptPageCount}
                 >
-                  Latest
+                  Latest »
                 </button>
               </div>
             </div>
