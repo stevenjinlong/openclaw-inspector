@@ -16,7 +16,7 @@
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black?style=flat-square" />
   <img alt="React" src="https://img.shields.io/badge/React-19-149eca?style=flat-square" />
   <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green?style=flat-square" />
-  <img alt="Status" src="https://img.shields.io/badge/status-read--only%20MVP-0f766e?style=flat-square" />
+  <img alt="Status" src="https://img.shields.io/badge/status-public%20alpha-2563eb?style=flat-square" />
 </p>
 
 ---
