@@ -70,6 +70,21 @@ export function SessionDetailView({
     }))
     .sort((left, right) => right.count - left.count || left.toolName.localeCompare(right.toolName));
 
+  const [transcriptPageSize, setTranscriptPageSize] = useState<number>(12);
+  const transcriptPageCount = Math.max(
+    1,
+    Math.ceil(transcriptMessageCount / transcriptPageSize),
+  );
+  const [transcriptPage, setTranscriptPage] = useState<number>(transcriptPageCount);
+  const pagedTranscriptMessages = useMemo(() => {
+    const startIndex = (transcriptPage - 1) * transcriptPageSize;
+    return session.transcript.messages.slice(startIndex, startIndex + transcriptPageSize);
+  }, [session.transcript.messages, transcriptPage, transcriptPageSize]);
+  const transcriptStart = transcriptMessageCount === 0
+    ? 0
+    : (transcriptPage - 1) * transcriptPageSize + 1;
+  const transcriptEnd = Math.min(transcriptPage * transcriptPageSize, transcriptMessageCount);
+
   useEffect(() => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
@@ -96,6 +111,10 @@ export function SessionDetailView({
     const nextUrl = `${url.pathname}${query ? `?${query}` : ""}`;
     window.history.replaceState({}, "", nextUrl);
   }, [currentTab, statusFilter, toolFilter]);
+
+  useEffect(() => {
+    setTranscriptPage((current) => Math.min(Math.max(current, 1), transcriptPageCount));
+  }, [transcriptPageCount]);
 
   return (
     <div className="stack detail-shell">
@@ -520,8 +539,65 @@ export function SessionDetailView({
               </div>
             </div>
 
+            <div className="transcript-toolbar">
+              <div className="badge-row">
+                <span className="badge">
+                  Showing {transcriptStart}-{transcriptEnd} of {transcriptMessageCount}
+                </span>
+                <span className="badge">Page {transcriptPage} / {transcriptPageCount}</span>
+              </div>
+
+              <div className="badge-row">
+                {[12, 24, 48].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setTranscriptPageSize(size)}
+                    className={`detail-filter-chip ${transcriptPageSize === size ? "active" : ""}`}
+                  >
+                    {size} / page
+                  </button>
+                ))}
+              </div>
+
+              <div className="badge-row">
+                <button
+                  type="button"
+                  onClick={() => setTranscriptPage(1)}
+                  className="detail-filter-chip"
+                  disabled={transcriptPage === 1}
+                >
+                  First
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTranscriptPage((current) => Math.max(1, current - 1))}
+                  className="detail-filter-chip"
+                  disabled={transcriptPage === 1}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTranscriptPage((current) => Math.min(transcriptPageCount, current + 1))}
+                  className="detail-filter-chip"
+                  disabled={transcriptPage === transcriptPageCount}
+                >
+                  Next
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTranscriptPage(transcriptPageCount)}
+                  className="detail-filter-chip"
+                  disabled={transcriptPage === transcriptPageCount}
+                >
+                  Latest
+                </button>
+              </div>
+            </div>
+
             <div className="list">
-              {session.transcript.messages.map((message) => (
+              {pagedTranscriptMessages.map((message) => (
                 <article key={`${message.messageType}-${message.index}`} className={`transcript-item ${message.messageType}`}>
                   <div className="badge-row">
                     <span className="badge">#{message.index + 1}</span>

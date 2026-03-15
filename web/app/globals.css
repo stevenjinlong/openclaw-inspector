@@ -693,6 +693,11 @@ h1, h2, h3, h4, p {
   box-shadow: var(--shadow-sm);
 }
 
+.detail-filter-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .detail-panel-header {
   display: flex;
   justify-content: space-between;
@@ -702,6 +707,18 @@ h1, h2, h3, h4, p {
 
 .detail-empty-state {
   padding: 24px;
+}
+
+.transcript-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
 }
 
 .polished-trace-card {

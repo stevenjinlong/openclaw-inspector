@@ -43,7 +43,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-section-label">Navigation</div>
         <nav className="nav">
           {navItems.map((item) => {
-            const active = pathname === item.href;
+            const active =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(`${item.href}/`));
 
             return (
               <Link
