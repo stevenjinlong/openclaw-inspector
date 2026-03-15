@@ -122,15 +122,21 @@ h1, h2, h3, h4, p {
 }
 
 .brand-mark {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--accent-soft), var(--blue-soft));
-  color: var(--accent-strong);
-  border: 1px solid rgba(15, 118, 110, 0.14);
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.brand-mark-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .sidebar-title {

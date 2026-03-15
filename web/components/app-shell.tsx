@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -10,7 +11,6 @@ import {
   SearchIcon,
   SessionsIcon,
   SettingsIcon,
-  SparklesIcon,
 } from "./ui-icons";
 
 const navItems = [
@@ -34,7 +34,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="sidebar">
         <div className="brand-block">
           <div className="brand-mark">
-            <SparklesIcon className="icon icon-lg" />
+            <Image
+              src="/assets/inspector-brand-mark.png"
+              alt="OpenClaw Inspector brand mark"
+              width={56}
+              height={56}
+              className="brand-mark-image"
+              priority
+            />
           </div>
           <div className="stack compact-gap">
             <p className="eyebrow">OpenClaw</p>
