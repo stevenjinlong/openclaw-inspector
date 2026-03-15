@@ -8,6 +8,7 @@ import { mockSessions } from "./mock-data";
 import {
   buildResponseMeta,
   createAdapterDescriptor,
+  formatOptionalTimestamp,
   inferTranscriptPath,
   normalizeMockSessionDetail,
   normalizeMockSessionSummary,
@@ -20,6 +21,7 @@ import {
   type RuntimeSessionLike,
   type RuntimeTranscriptMessage,
   type SessionDetailRecord,
+  type SessionModelInsights,
   type SessionSummaryRecord,
   type TranscriptSource,
 } from "./normalizers";
@@ -30,6 +32,7 @@ const DEFAULT_HISTORY_LIMIT = 200;
 const MAX_BUFFER_BYTES = 20 * 1024 * 1024;
 const SESSION_SOURCE_TTL_MS = 5000;
 const TRANSCRIPT_TTL_MS = 5000;
+const MODEL_INSIGHTS_TTL_MS = 10000;
 
 type SourcePreference = "auto" | AdapterMode;
 
@@ -153,7 +156,10 @@ export async function getSessionDetail(
   }
 
   const transcriptPath = inferTranscriptPath(runtimeSession);
-  const transcript = await resolveTranscript(runtimeSession.key, transcriptPath);
+  const [transcript, modelInsights] = await Promise.all([
+    resolveTranscript(runtimeSession.key, transcriptPath),
+    resolveModelInsights(transcriptPath, runtimeSession.model ?? "unknown", runtimeSession.modelProvider ?? null),
+  ]);
 
   return normalizeRuntimeSessionDetail({
     session: runtimeSession,
@@ -162,6 +168,7 @@ export async function getSessionDetail(
     transcriptMessages: transcript.messages,
     transcriptPath,
     hasCompaction: transcript.hasCompaction,
+    modelInsights,
   });
 }
 
@@ -199,7 +206,10 @@ export async function getSessionDetailResponse(
   }
 
   const transcriptPath = inferTranscriptPath(runtimeSession);
-  const transcript = await resolveTranscript(runtimeSession.key, transcriptPath);
+  const [transcript, modelInsights] = await Promise.all([
+    resolveTranscript(runtimeSession.key, transcriptPath),
+    resolveModelInsights(transcriptPath, runtimeSession.model ?? "unknown", runtimeSession.modelProvider ?? null),
+  ]);
   const data = normalizeRuntimeSessionDetail({
     session: runtimeSession,
     source: resolved.mode,
@@ -207,6 +217,7 @@ export async function getSessionDetailResponse(
     transcriptMessages: transcript.messages,
     transcriptPath,
     hasCompaction: transcript.hasCompaction,
+    modelInsights,
   });
 
   return {
@@ -361,6 +372,78 @@ async function resolveTranscript(
         hasCompaction: false,
         warnings,
       };
+    },
+  );
+}
+
+async function resolveModelInsights(
+  transcriptPath: string | null,
+  summaryModel: string,
+  summaryProvider: string | null,
+): Promise<SessionModelInsights | null> {
+  if (!transcriptPath) {
+    return null;
+  }
+
+  return withRuntimeCache(
+    `model-insights:${transcriptPath}:${summaryModel}:${summaryProvider ?? "none"}`,
+    MODEL_INSIGHTS_TTL_MS,
+    async () => {
+      await access(transcriptPath, fsConstants.R_OK);
+      const content = await readFile(transcriptPath, "utf8");
+      const rows = content.split(/\r?\n/).filter(Boolean);
+
+      let latestModel: string | null = null;
+      let latestProvider: string | null = null;
+      let latestTimestamp: string | null = null;
+      let snapshotCount = 0;
+      const variants = new Set<string>();
+
+      for (const row of rows) {
+        if (!row.includes('"customType":"model-snapshot"')) {
+          continue;
+        }
+
+        const parsed = JSON.parse(row) as {
+          timestamp?: number | string;
+          customType?: string;
+          data?: {
+            modelId?: string;
+            provider?: string;
+            timestamp?: number | string;
+          };
+        };
+
+        if (parsed.customType !== "model-snapshot") {
+          continue;
+        }
+
+        const modelId = parsed.data?.modelId ?? null;
+        const provider = parsed.data?.provider ?? null;
+        if (!modelId) {
+          continue;
+        }
+
+        snapshotCount += 1;
+        latestModel = modelId;
+        latestProvider = provider;
+        latestTimestamp = formatOptionalTimestamp(parsed.data?.timestamp ?? parsed.timestamp) ?? latestTimestamp;
+        variants.add(`${provider ?? "unknown"}::${modelId}`);
+      }
+
+      if (!latestModel) {
+        return null;
+      }
+
+      return {
+        latestSnapshotModel: latestModel,
+        latestSnapshotProvider: latestProvider,
+        latestSnapshotAt: latestTimestamp,
+        snapshotCount,
+        mixedSnapshots: variants.size > 1,
+        differsFromSummary:
+          latestModel !== summaryModel || (latestProvider ?? null) !== (summaryProvider ?? null),
+      } satisfies SessionModelInsights;
     },
   );
 }

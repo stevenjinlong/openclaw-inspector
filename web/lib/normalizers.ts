@@ -81,6 +81,15 @@ export interface SessionSummaryRecord {
   dataSource: AdapterMode;
 }
 
+export interface SessionModelInsights {
+  latestSnapshotModel: string | null;
+  latestSnapshotProvider: string | null;
+  latestSnapshotAt: string | null;
+  snapshotCount: number;
+  mixedSnapshots: boolean;
+  differsFromSummary: boolean;
+}
+
 export interface SessionDetailRecord extends SessionSummaryRecord {
   transcript: {
     source: TranscriptSource;
@@ -88,6 +97,7 @@ export interface SessionDetailRecord extends SessionSummaryRecord {
     messages: TranscriptEntry[];
   };
   toolTrace: ToolTraceEntry[];
+  modelInsights: SessionModelInsights | null;
 }
 
 export interface ResponseMeta {
@@ -276,6 +286,7 @@ export function normalizeRuntimeSessionDetail(options: {
   transcriptMessages: RuntimeTranscriptMessage[];
   transcriptPath?: string | null;
   hasCompaction?: boolean;
+  modelInsights?: SessionModelInsights | null;
 }): SessionDetailRecord {
   const summary = normalizeRuntimeSessionSummary(options.session, options.source);
   const transcriptMessages = normalizeTranscriptMessages(options.transcriptMessages);
@@ -292,6 +303,7 @@ export function normalizeRuntimeSessionDetail(options: {
       messages: transcriptMessages,
     },
     toolTrace: buildToolTrace(transcriptMessages),
+    modelInsights: options.modelInsights ?? null,
   };
 }
 
@@ -353,6 +365,7 @@ export function normalizeMockSessionDetail(
       messages: transcriptMessages,
     },
     toolTrace: buildToolTrace(transcriptMessages),
+    modelInsights: null,
   };
 }
 

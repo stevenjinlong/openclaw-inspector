@@ -256,7 +256,7 @@ export function SessionDetailView({
             </span>
             <span className="badge meta-badge meta-badge-model">
               <SparklesIcon className="icon icon-sm" />
-              {session.model}
+              {session.modelInsights?.latestSnapshotModel ?? session.model}
             </span>
             <span className="badge meta-badge meta-badge-provider">
               <DatabaseIcon className="icon icon-sm" />
@@ -266,6 +266,8 @@ export function SessionDetailView({
               <ShieldIcon className="icon icon-sm" />
               transcript: {session.transcript.source}
             </span>
+            {session.modelInsights?.mixedSnapshots ? <span className="badge warn">mixed models</span> : null}
+            {session.modelInsights?.differsFromSummary ? <span className="badge warn">summary mismatch</span> : null}
             {session.status.hasCompaction ? <span className="badge warn">compacted</span> : null}
             {session.status.hasSubagent ? <span className="badge good">subagent</span> : null}
             {session.status.abortedLastRun ? <span className="badge bad">aborted</span> : null}
@@ -295,6 +297,20 @@ export function SessionDetailView({
             <span className="mono">{session.apiPath}</span>
             <span className="muted">Updated</span>
             <span>{session.updatedAt}</span>
+            <span className="muted">Summary model</span>
+            <span>{session.model}{session.modelProvider ? ` · ${session.modelProvider}` : ""}</span>
+            <span className="muted">Latest snapshot</span>
+            <span>
+              {session.modelInsights?.latestSnapshotModel
+                ? `${session.modelInsights.latestSnapshotModel}${session.modelInsights.latestSnapshotProvider ? ` · ${session.modelInsights.latestSnapshotProvider}` : ""}`
+                : "unavailable"}
+            </span>
+            <span className="muted">Snapshot info</span>
+            <span>
+              {session.modelInsights
+                ? `${session.modelInsights.snapshotCount} snapshots${session.modelInsights.latestSnapshotAt ? ` · latest ${session.modelInsights.latestSnapshotAt}` : ""}`
+                : "no transcript snapshots"}
+            </span>
             <span className="muted">Agent</span>
             <span>{session.agentId ?? "unknown"}</span>
             <span className="muted">Transcript path</span>

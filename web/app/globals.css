@@ -1278,6 +1278,7 @@ h1, h2, h3, h4, p {
 
 .donut-panel {
   gap: 14px;
+  min-width: 0;
 }
 
 .donut-panel h3 {
@@ -1288,9 +1289,9 @@ h1, h2, h3, h4, p {
 
 .donut-layout {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 18px;
-  align-items: center;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
 }
 
 .donut-visual-shell {
@@ -1332,6 +1333,7 @@ h1, h2, h3, h4, p {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
 }
 
 .donut-legend-row,
@@ -1340,6 +1342,8 @@ h1, h2, h3, h4, p {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid var(--border);
@@ -1361,10 +1365,16 @@ h1, h2, h3, h4, p {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.donut-legend-main {
+  flex: 1 1 auto;
 }
 
 .donut-legend-metric {
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .legend-dot {
