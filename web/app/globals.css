@@ -552,9 +552,24 @@ h1, h2, h3, h4, p {
   min-height: 82px;
 }
 
+.session-channel-label {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.channel-tone-discord { color: #6d5efc; }
+.channel-tone-feishu { color: #0f84ff; }
+.channel-tone-internal { color: #b45309; }
+.channel-tone-webchat { color: #0f766e; }
+.channel-tone-unknown { color: #667085; }
+.channel-tone-default { color: var(--accent); }
+
 .session-name {
-  font-size: 28px;
-  line-height: 1.08;
+  font-size: 24px;
+  line-height: 1.12;
   letter-spacing: -0.03em;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -591,8 +606,20 @@ h1, h2, h3, h4, p {
 }
 
 .session-open-link {
-  width: 100%;
-  justify-content: flex-start;
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .elevated-row {
@@ -739,6 +766,10 @@ h1, h2, h3, h4, p {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+}
+
+.sessions-toolbar {
+  margin-bottom: 4px;
 }
 
 .transcript-toolbar-meta {

@@ -102,6 +102,16 @@ export function SessionsExplorer({
     });
   }, [sessions, query, kindFilter, channelFilter, stateFilter]);
 
+  const [sessionPageSize, setSessionPageSize] = useState<number>(8);
+  const sessionPageCount = Math.max(1, Math.ceil(filteredSessions.length / sessionPageSize));
+  const [sessionPage, setSessionPage] = useState<number>(1);
+  const pagedSessions = useMemo(() => {
+    const startIndex = (sessionPage - 1) * sessionPageSize;
+    return filteredSessions.slice(startIndex, startIndex + sessionPageSize);
+  }, [filteredSessions, sessionPage, sessionPageSize]);
+  const sessionStart = filteredSessions.length === 0 ? 0 : (sessionPage - 1) * sessionPageSize + 1;
+  const sessionEnd = Math.min(sessionPage * sessionPageSize, filteredSessions.length);
+
   useEffect(() => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
@@ -134,6 +144,10 @@ export function SessionsExplorer({
     const nextUrl = `${url.pathname}${queryString ? `?${queryString}` : ""}`;
     window.history.replaceState({}, "", nextUrl);
   }, [query, kindFilter, channelFilter, stateFilter]);
+
+  useEffect(() => {
+    setSessionPage((current) => Math.min(Math.max(current, 1), sessionPageCount));
+  }, [sessionPageCount]);
 
   return (
     <>
@@ -257,6 +271,63 @@ export function SessionsExplorer({
       </section>
 
       <section className="card stack surface-soft">
+        <div className="transcript-toolbar sessions-toolbar">
+          <div className="badge-row transcript-toolbar-group transcript-toolbar-meta">
+            <span className="badge toolbar-page-badge">
+              Showing {sessionStart}-{sessionEnd} of {filteredSessions.length}
+            </span>
+            <span className="badge toolbar-page-badge">Page {sessionPage} / {sessionPageCount}</span>
+          </div>
+
+          <div className="badge-row transcript-toolbar-group">
+            {[8, 16, 24].map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => setSessionPageSize(size)}
+                className={`detail-filter-chip ${sessionPageSize === size ? "active" : ""}`}
+              >
+                {size} / page
+              </button>
+            ))}
+          </div>
+
+          <div className="badge-row transcript-toolbar-group transcript-toolbar-pagination">
+            <button
+              type="button"
+              onClick={() => setSessionPage(1)}
+              className="detail-filter-chip"
+              disabled={sessionPage === 1}
+            >
+              « First
+            </button>
+            <button
+              type="button"
+              onClick={() => setSessionPage((current) => Math.max(1, current - 1))}
+              className="detail-filter-chip"
+              disabled={sessionPage === 1}
+            >
+              ← Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => setSessionPage((current) => Math.min(sessionPageCount, current + 1))}
+              className="detail-filter-chip"
+              disabled={sessionPage === sessionPageCount}
+            >
+              Next →
+            </button>
+            <button
+              type="button"
+              onClick={() => setSessionPage(sessionPageCount)}
+              className="detail-filter-chip"
+              disabled={sessionPage === sessionPageCount}
+            >
+              Latest »
+            </button>
+          </div>
+        </div>
+
         {filteredSessions.length === 0 ? (
           <div className="empty-state">
             <h3>No sessions match the current search/filters</h3>
@@ -266,11 +337,13 @@ export function SessionsExplorer({
           </div>
         ) : (
           <div className="list">
-            {filteredSessions.map((session) => (
+            {pagedSessions.map((session) => (
               <article key={session.key} className="session-row aligned-session-row">
                 <div className="session-main">
                   <div className="session-main-head">
-                    <p className="eyebrow">{session.channel}</p>
+                    <p className={`session-channel-label ${channelToneClass(session.channel)}`}>
+                      {session.channel}
+                    </p>
                     <h3 className="session-name">{session.displayName}</h3>
                     <p className="muted mono session-key">{session.key}</p>
                   </div>
@@ -304,7 +377,7 @@ export function SessionsExplorer({
                     <span className="muted">API</span>
                     <span className="mono session-api">{session.apiPath}</span>
                   </div>
-                  <Link href={session.href} className="export-link session-open-link" prefetch>
+                  <Link href={session.href} className="session-open-link" prefetch>
                     Inspect session
                   </Link>
                 </div>
@@ -315,4 +388,15 @@ export function SessionsExplorer({
       </section>
     </>
   );
+}
+
+function channelToneClass(channel: string): string {
+  const normalized = channel.trim().toLowerCase();
+
+  if (normalized === "discord") return "channel-tone-discord";
+  if (normalized === "feishu") return "channel-tone-feishu";
+  if (normalized === "internal") return "channel-tone-internal";
+  if (normalized === "webchat") return "channel-tone-webchat";
+  if (normalized === "unknown") return "channel-tone-unknown";
+  return "channel-tone-default";
 }
