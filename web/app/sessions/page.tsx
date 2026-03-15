@@ -1,6 +1,7 @@
 import { listSessionsResponse } from "../../lib/session-adapter";
 import { type SessionKind } from "../../lib/normalizers";
 import { SessionsExplorer } from "../../components/sessions-explorer";
+import { SessionsIcon } from "../../components/ui-icons";
 
 export const dynamic = "force-dynamic";
 
@@ -35,13 +36,18 @@ export default async function SessionsPage({
   return (
     <div className="stack">
       <div className="page-title">
-        <div>
-          <p className="eyebrow">Sessions</p>
-          <h2>Explorer</h2>
-          <p className="muted">
-            Live list view backed by a normalized adapter contract. Search and
-            filter controls run instantly, and the cards now align more cleanly.
-          </p>
+        <div className="title-with-icon">
+          <span className="page-icon-badge">
+            <SessionsIcon className="icon icon-lg" />
+          </span>
+          <div>
+            <p className="eyebrow">Sessions</p>
+            <h2>Explorer</h2>
+            <p className="muted">
+              Live list view backed by a normalized adapter contract. Search and
+              filter controls run instantly, and the cards now align more cleanly.
+            </p>
+          </div>
         </div>
         <span className="badge">{meta.adapter.label}</span>
       </div>

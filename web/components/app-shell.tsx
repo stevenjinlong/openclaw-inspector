@@ -4,11 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import {
+  DashboardIcon,
+  MaintenanceIcon,
+  SessionsIcon,
+  SettingsIcon,
+  SparklesIcon,
+} from "./ui-icons";
+
 const navItems = [
-  { href: "/", label: "Dashboard", description: "Overview" },
-  { href: "/sessions", label: "Sessions", description: "Explorer" },
-  { href: "/maintenance", label: "Maintenance", description: "Cleanup preview" },
-  { href: "/settings", label: "Settings", description: "Connection" },
+  { href: "/", label: "Dashboard", description: "Overview", icon: DashboardIcon },
+  { href: "/sessions", label: "Sessions", description: "Explorer", icon: SessionsIcon },
+  {
+    href: "/maintenance",
+    label: "Maintenance",
+    description: "Cleanup preview",
+    icon: MaintenanceIcon,
+  },
+  { href: "/settings", label: "Settings", description: "Connection", icon: SettingsIcon },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -18,7 +31,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <div className="brand-mark">OC</div>
+          <div className="brand-mark">
+            <SparklesIcon className="icon icon-lg" />
+          </div>
           <div className="stack compact-gap">
             <p className="eyebrow">OpenClaw</p>
             <h1 className="sidebar-title">Inspector</h1>
@@ -46,6 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             const active =
               pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+            const Icon = item.icon;
 
             return (
               <Link
@@ -53,9 +69,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 className={`nav-link ${active ? "active" : ""}`}
               >
-                <span className="nav-link-copy">
-                  <strong>{item.label}</strong>
-                  <span className="muted">{item.description}</span>
+                <span className="nav-link-main">
+                  <span className="nav-icon-wrap">
+                    <Icon className="icon nav-icon-svg" />
+                  </span>
+                  <span className="nav-link-copy">
+                    <strong>{item.label}</strong>
+                    <span className="muted">{item.description}</span>
+                  </span>
                 </span>
                 <span className="nav-link-dot" />
               </Link>
@@ -66,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-footer surface-soft">
           <p className="eyebrow">Phase 1</p>
           <p className="muted">
-            Light-first visual refresh with cleaner surfaces and calmer spacing.
+            Light-first visual refresh with cleaner surfaces, calmer spacing, and richer data signals.
           </p>
         </div>
       </aside>

@@ -1,4 +1,5 @@
 import { getMaintenancePreviewResponse } from "../../lib/maintenance-adapter";
+import { MaintenanceIcon } from "../../components/ui-icons";
 
 export const dynamic = "force-dynamic";
 
@@ -8,13 +9,18 @@ export default async function MaintenancePage() {
   return (
     <div className="stack dashboard-shell">
       <div className="page-title">
-        <div>
-          <p className="eyebrow">Maintenance</p>
-          <h2>Cleanup preview and store health</h2>
-          <p className="muted">
-            Read-only maintenance preview powered by the local OpenClaw cleanup
-            dry-run command.
-          </p>
+        <div className="title-with-icon">
+          <span className="page-icon-badge">
+            <MaintenanceIcon className="icon icon-lg" />
+          </span>
+          <div>
+            <p className="eyebrow">Maintenance</p>
+            <h2>Cleanup preview and store health</h2>
+            <p className="muted">
+              Read-only maintenance preview powered by the local OpenClaw cleanup
+              dry-run command.
+            </p>
+          </div>
         </div>
         <span className="badge">{meta.adapter.label}</span>
       </div>
@@ -91,7 +97,7 @@ export default async function MaintenancePage() {
               <p className="eyebrow">Store preview</p>
               <h3>Per-agent dry-run breakdown</h3>
             </div>
-            <div className="list">
+            <div className="list store-preview-list">
               {data.stores.map((store) => (
                 <article key={store.agentId} className="tool-trace-card">
                   <div className="badge-row">

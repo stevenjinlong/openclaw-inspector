@@ -9,6 +9,7 @@ import {
   type SessionKind,
   type SessionSummaryRecord,
 } from "../lib/normalizers";
+import { ArrowRightIcon, SearchIcon } from "./ui-icons";
 
 type KindFilter = "all" | SessionKind;
 type ChannelFilter = "all" | string;
@@ -109,6 +110,15 @@ export function SessionsExplorer({
     const startIndex = (sessionPage - 1) * sessionPageSize;
     return filteredSessions.slice(startIndex, startIndex + sessionPageSize);
   }, [filteredSessions, sessionPage, sessionPageSize]);
+  const nowRef = useMemo(() => Date.now(), []);
+  const sessionsWithStatus = useMemo(
+    () =>
+      pagedSessions.map((session) => ({
+        session,
+        status: classifySummaryStatus(session, nowRef),
+      })),
+    [pagedSessions, nowRef],
+  );
   const sessionStart = filteredSessions.length === 0 ? 0 : (sessionPage - 1) * sessionPageSize + 1;
   const sessionEnd = Math.min(sessionPage * sessionPageSize, filteredSessions.length);
 
@@ -151,7 +161,7 @@ export function SessionsExplorer({
 
   return (
     <>
-      <section className="card stack glass-panel">
+      <section className="card stack surface-soft">
         <div className="badge-row">
           <span className="badge">Total: {meta.count ?? sessions.length}</span>
           <span className="badge">Visible: {filteredSessions.length}</span>
@@ -175,14 +185,17 @@ export function SessionsExplorer({
 
       <section className="card stack surface-soft">
         <div className="search-row">
-          <input
-            className="search-input"
-            type="text"
-            name="q"
-            placeholder="Search by name, key, channel, agent, model"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+          <label className="search-input-shell">
+            <SearchIcon className="icon icon-sm search-input-icon" />
+            <input
+              className="search-input"
+              type="text"
+              name="q"
+              placeholder="Search by name, key, channel, agent, model"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
           {(query || kindFilter !== "all" || channelFilter !== "all" || stateFilter !== "all") ? (
             <button
               className="search-button secondary"
@@ -337,12 +350,15 @@ export function SessionsExplorer({
           </div>
         ) : (
           <div className="list">
-            {pagedSessions.map((session) => (
+            {sessionsWithStatus.map(({ session, status }) => (
               <article key={session.key} className="session-row aligned-session-row">
                 <div className="session-main">
                   <div className="session-main-head">
                     <p className={`session-channel-label ${channelToneClass(session.channel)}`}>
                       {session.channel}
+                      <span className={`session-status-pill summary-status-${status.code}`}>
+                        {status.label}
+                      </span>
                     </p>
                     <h3 className="session-name">{session.displayName}</h3>
                     <p className="muted mono session-key">{session.key}</p>
@@ -379,6 +395,7 @@ export function SessionsExplorer({
                   </div>
                   <Link href={session.href} className="session-open-link" prefetch>
                     Inspect session
+                    <ArrowRightIcon className="icon icon-sm" />
                   </Link>
                 </div>
               </article>
@@ -388,6 +405,24 @@ export function SessionsExplorer({
       </section>
     </>
   );
+}
+
+function classifySummaryStatus(
+  session: SessionSummaryRecord,
+  nowMs: number,
+): { code: "active" | "recent" | "idle"; label: string } {
+  const updatedAtMs = session.updatedAtMs ?? Date.now();
+  const deltaSeconds = Math.max(0, (nowMs - updatedAtMs) / 1000);
+
+  if (deltaSeconds <= 15) {
+    return { code: "active", label: "ACTIVE" };
+  }
+
+  if (deltaSeconds <= 300) {
+    return { code: "recent", label: "RECENT" };
+  }
+
+  return { code: "idle", label: "IDLE" };
 }
 
 function channelToneClass(channel: string): string {

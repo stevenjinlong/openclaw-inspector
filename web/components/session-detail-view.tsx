@@ -9,8 +9,10 @@ import {
   type SessionDetailRecord,
   type ToolTraceEntry,
 } from "../lib/normalizers";
+import { ArrowLeftIcon, SessionsIcon } from "./ui-icons";
 
 type DetailTab = "transcript" | "tools" | "stats" | "export";
+type LiveStatusCode = "idle" | "llm-running" | "tools-running" | "possibly-stuck";
 type ToolTraceStatusFilter = "all" | ToolTraceEntry["status"];
 
 export function SessionDetailView({
@@ -29,6 +31,11 @@ export function SessionDetailView({
   const [currentTab, setCurrentTab] = useState<DetailTab>(initialTab);
   const [statusFilter, setStatusFilter] = useState<ToolTraceStatusFilter>(initialStatusFilter);
   const [toolFilter, setToolFilter] = useState(initialToolFilter);
+  const [liveStatus, setLiveStatus] = useState<{
+    statusCode: LiveStatusCode;
+    label: string;
+    reason: string;
+  } | null>(null);
 
   const toolOptions = useMemo(
     () =>
@@ -100,6 +107,45 @@ export function SessionDetailView({
   const transcriptEnd = Math.min(transcriptPage * transcriptPageSize, transcriptMessageCount);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function fetchStatus() {
+      try {
+        const response = await fetch(`${session.apiPath}/status`);
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          ok: boolean;
+          statusCode: LiveStatusCode;
+          label: string;
+          reason: string;
+        };
+
+        if (!cancelled && payload.ok) {
+          setLiveStatus({
+            statusCode: payload.statusCode,
+            label: payload.label,
+            reason: payload.reason,
+          });
+        }
+      } catch {
+        // Silently ignore transient errors; status is best-effort only.
+      }
+    }
+
+    fetchStatus();
+    const intervalId = window.setInterval(fetchStatus, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [session.apiPath]);
+
+  useEffect(() => {
     const url = new URL(window.location.href);
     const params = url.searchParams;
 
@@ -137,14 +183,20 @@ export function SessionDetailView({
   return (
     <div className="stack detail-shell">
       <div className="page-title">
-        <div>
-          <p className="eyebrow">Session detail</p>
-          <h2>{session.displayName}</h2>
-          <p className="muted detail-subtitle">
-            A read-only inspection surface for one session, with tabs and tool filters kept on the client for instant interaction.
-          </p>
+        <div className="title-with-icon">
+          <span className="page-icon-badge">
+            <SessionsIcon className="icon icon-lg" />
+          </span>
+          <div>
+            <p className="eyebrow">Session detail</p>
+            <h2>{session.displayName}</h2>
+            <p className="muted detail-subtitle">
+              A read-only inspection surface for one session, with tabs and tool filters kept on the client for instant interaction.
+            </p>
+          </div>
         </div>
         <Link href="/sessions" className="secondary-action">
+          <ArrowLeftIcon className="icon icon-sm" />
           Back to sessions
         </Link>
       </div>
@@ -152,6 +204,9 @@ export function SessionDetailView({
       <section className="card detail-hero surface-soft">
         <div className="detail-hero-copy stack">
           <div className="badge-row">
+            <span className={`badge status-badge status-${liveStatus?.statusCode ?? "idle"}`}>
+              {liveStatus?.label ?? "IDLE"}
+            </span>
             <span className="badge">{session.kind}</span>
             <span className="badge">{session.channel}</span>
             <span className="badge">{session.model}</span>
