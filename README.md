@@ -1,127 +1,171 @@
-# OpenClaw Inspector
+<p align="center">
+  <img src="./docs/assets/brand-mark.png" alt="OpenClaw Inspector" width="120" height="120" />
+</p>
 
-**A local-first observability dashboard for OpenClaw.**
+<h1 align="center">OpenClaw Inspector</h1>
 
-OpenClaw Inspector turns raw sessions, transcripts, tool traces, maintenance output, and connection state into a UI you can actually reason about.
+<p align="center">
+  <strong>A local-first observability dashboard for OpenClaw.</strong>
+</p>
 
-Instead of digging through JSONL files, CLI output, and scattered runtime state, you get a clean control surface for understanding what happened, where context went, which tools ran, and which session store looks unhealthy.
+<p align="center">
+  Inspect sessions, tool traces, transcript search, maintenance health, and data-source routing from a UI that feels like a product instead of a pile of logs.
+</p>
+
+<p align="center">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black?style=flat-square" />
+  <img alt="React" src="https://img.shields.io/badge/React-19-149eca?style=flat-square" />
+  <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green?style=flat-square" />
+  <img alt="Status" src="https://img.shields.io/badge/status-read--only%20MVP-0f766e?style=flat-square" />
+</p>
 
 ---
 
-## Why this exists
+## What is it?
 
-OpenClaw already has strong primitives:
+OpenClaw already has strong runtime primitives:
 
 - sessions
 - transcripts
 - tool calls and results
 - compaction
 - subagents
-- maintenance / cleanup
-- gateway-based routing
+- cleanup / maintenance
+- Gateway-backed routing
 
-What it lacks is a **product-grade inspection surface**.
+What it did not have was a **clean visual control surface**.
 
-OpenClaw Inspector is meant to be that missing layer:
+**OpenClaw Inspector** is that missing layer.
 
-- **see** what is happening
-- **debug** a single session deeply
-- **spot** operational issues quickly
-- **switch** between local and remote data sources safely
-- **understand** the system without living in logs
+It helps you:
 
----
+- **see** what happened in a session
+- **debug** tool activity and transcript flow
+- **spot** store health issues quickly
+- **search** across recent transcripts
+- **switch** between local and remote data sources without touching CLI flags every time
 
-## What it does today
+In short:
 
-Current product surfaces:
-
-- **Dashboard**
-  - attention-oriented summary cards
-  - session mix / channel mix
-  - context-heavy sessions
-  - maintenance pulse and health ratios
-
-- **Sessions Explorer**
-  - real session listing
-  - client-side filtering and search
-  - session status pills
-  - pagination
-  - saved-view scaffolding / pinning UX direction
-
-- **Session Detail**
-  - transcript view
-  - tool trace view
-  - stats view
-  - export actions
-  - model snapshot insights
-  - search-focused deep links into exact matching messages
-
-- **Search**
-  - transcript search across recent sessions
-  - result pagination
-  - jump-to-message flows into Session Detail
-
-- **Maintenance**
-  - session store health dashboard
-  - cleanup dry-run analytics
-  - per-agent store breakdown
-
-- **Settings**
-  - data source control panel
-  - local Gateway / local CLI / mock modes
-  - **remote Gateway support** via URL + token/password
-  - runtime health cards showing what is actually reachable
+> OpenClaw runs the agents. OpenClaw Inspector helps humans make sense of them.
 
 ---
 
-## What makes it interesting
+## Screenshot tour
 
-A lot of “AI dashboards” stop at vanity metrics.
+### Dashboard
 
-This one is trying to be useful for people actually operating agents.
+![Dashboard](./docs/assets/dashboard.png)
 
-### 1. Session-first, not prompt-gallery-first
-The core unit is the **session**: what the user asked, what tools ran, how the transcript evolved, and where the run went weird.
+### Sessions Explorer
 
-### 2. Local-first, remote-ready
-You can inspect a local OpenClaw environment, but the Settings page now also supports the very real setup of:
+![Sessions Explorer](./docs/assets/sessions.png)
 
-> browser/UI on your laptop, OpenClaw Gateway on a server
+### Session Detail
 
-### 3. Honest about source mode
-The UI makes it clear whether data is coming from:
+![Session Detail](./docs/assets/session-detail.png)
+
+### Transcript Search
+
+![Transcript Search](./docs/assets/search.png)
+
+---
+
+## Why it is interesting
+
+A lot of AI dashboards stop at vanity metrics.
+
+OpenClaw Inspector is trying to be useful for people actually operating agents.
+
+### Session-first, not demo-first
+The core object is the **session**:
+
+- what the user asked
+- what tools ran
+- how the transcript evolved
+- where context went
+- what likely got weird
+
+### Local-first, remote-ready
+You can run the UI locally and still point it at a **remote OpenClaw Gateway**.
+
+That means this setup works:
+
+- browser/UI on your laptop
+- OpenClaw Gateway on a server or another machine
+
+### Honest source visibility
+The UI makes it obvious whether the current data is coming from:
 
 - local Gateway
 - local CLI
 - remote Gateway
 - mock fallback
 
-### 4. Operationally useful maintenance visibility
-Instead of hiding cleanup behind a CLI command, the app can show:
+### Maintenance that says something useful
+Instead of hiding cleanup behind a dry-run command, the app surfaces:
 
-- which stores would mutate
-- whether missing references exist
-- where cleanup pressure is concentrated
+- store health
+- mutation pressure
+- missing references
+- per-agent cleanup hotspots
 
 ---
 
-## Current status
+## Current feature set
 
-This repo is no longer just docs-first bootstrap material.
+### Dashboard
+- attention-oriented summary cards
+- context-heavy session views
+- channel mix / kind mix
+- maintenance pulse and health ratios
 
-It already contains a working **read-only inspector MVP** under `web/` with:
+### Sessions Explorer
+- real session listing
+- client-side filters and search
+- pagination
+- state pills and richer metadata badges
 
-- live local session reads
-- transcript inspection
+### Session Detail
+- transcript view
+- tool trace view
+- stats view
 - export actions
-- search
-- maintenance preview
-- remote data source settings
+- model snapshot insights
+- search-focused jump-to-message flows
 
-It is still intentionally **read-only by default**.
+### Search
+- transcript search across recent sessions
+- paginated results
+- direct jump into matching transcript entries
 
-That means the product is already useful for inspection and debugging, while avoiding unsafe “oops I mutated production” behavior.
+### Maintenance
+- session store health dashboard
+- cleanup dry-run analytics
+- per-agent store breakdown
+
+### Settings
+- local Gateway / local CLI / mock modes
+- **remote Gateway support** via URL + token/password
+- runtime health cards showing what is actually reachable
+
+---
+
+## Data source modes
+
+Inspector currently supports these read modes:
+
+- **Auto local**
+  - local Gateway → local CLI → mock
+- **Local Gateway**
+- **Local CLI**
+- **Remote Gateway**
+  - `ws://` or `wss://`
+  - token or password
+- **Mock**
+  - useful for UI development, demos, and screenshots
+
+**Note:** Maintenance is still local-only because cleanup dry-runs execute on the machine running Inspector.
 
 ---
 
@@ -140,11 +184,11 @@ npm install
 npm run dev
 ```
 
-Then open:
+Open:
 
 - `http://localhost:3000`
 
-### Build for production
+### Production build
 
 ```bash
 cd web
@@ -154,44 +198,20 @@ npm run start
 
 ---
 
-## Data source modes
-
-Inspector currently supports these read modes:
-
-- **Auto local**
-  - prefer local Gateway
-  - fallback to local CLI
-  - fallback to mock
-
-- **Local Gateway**
-  - strict live local Gateway reads
-
-- **Local CLI**
-  - direct local CLI-backed reads
-
-- **Remote Gateway**
-  - connect to a remote OpenClaw Gateway with:
-    - `ws://` or `wss://` URL
-    - token or password
-
-- **Mock**
-  - useful for UI development, demos, and screenshots
-
-**Note:** Maintenance is still local-only because cleanup dry-runs execute through the local machine’s OpenClaw CLI.
-
----
-
 ## Repo structure
 
 ```text
 openclaw-inspector/
 ├── docs/
+│   ├── assets/
 │   ├── ARCHITECTURE.md
 │   ├── FEATURES.md
 │   ├── MVP.md
 │   ├── PRD.md
 │   ├── ROADMAP.md
 │   └── TASKS.md
+├── LICENSE
+├── README.md
 └── web/
     ├── app/
     ├── components/
@@ -200,22 +220,22 @@ openclaw-inspector/
     └── ...
 ```
 
-### Useful docs
+Useful docs:
 
 - `docs/PRD.md` — product intent
-- `docs/FEATURES.md` — surface-by-surface feature inventory
+- `docs/FEATURES.md` — feature inventory
 - `docs/MVP.md` — first useful release boundary
-- `docs/ARCHITECTURE.md` — implementation model and integration seams
-- `docs/ROADMAP.md` — phased delivery plan
+- `docs/ARCHITECTURE.md` — integration model and adapter seams
+- `docs/ROADMAP.md` — delivery phases
 
 ---
 
-## Product principles
+## Design principles
 
 - **Read-only by default**
-- **Show the truth about the source**
 - **Make one session deeply understandable**
-- **Prefer useful operational views over flashy vanity widgets**
+- **Tell the truth about the current data source**
+- **Prefer operational clarity over shiny nonsense**
 - **Local-first now, remote-ready when it matters**
 
 ---
@@ -226,59 +246,37 @@ Near-term priorities:
 
 - sharpen the dashboard further
 - improve search UX
-- continue polishing session workflows
-- keep maintenance and settings genuinely useful
-- make the inspector feel like a product, not a debug prototype
+- keep polishing session debugging flows
+- continue improving maintenance and settings
+- make the inspector feel unmistakably product-grade
 
 Later directions:
 
 - safe action layer
-- better live observability
-- richer lineage / topology stories where they actually add value
-- team / multi-Gateway workflows
-
----
-
-## What this is **not**
-
-This is **not** trying to replace OpenClaw itself.
-
-It is the layer on top that helps you:
-
-- inspect
-- debug
-- understand
-- operate
-
-OpenClaw runs the agents.
-OpenClaw Inspector helps humans make sense of them.
+- live observability
+- multi-Gateway / team workflows
+- deeper lineage / topology stories where they genuinely add value
 
 ---
 
 ## Contributing
 
-This project is still early, so the most useful contributions are usually:
+Still early, so the most useful contributions are usually:
 
 - bug reports with screenshots or reproduction steps
 - UX feedback on confusing surfaces
-- ideas for better session debugging flows
-- improvements to the data-source and maintenance story
+- ideas for better debugging flows
+- improvements to the source-mode and maintenance story
 
-If you open issues, the best ones are the ones that answer:
+Good issue prompt:
 
-> what did you expect to understand in 5 seconds, and what blocked that?
+> What did you expect to understand in 5 seconds, and what blocked that?
 
 ---
 
 ## License
 
-License is not set yet.
-
-If you plan to make the repo public, pick one before broad distribution:
-
-- **MIT** for maximum permissiveness
-- **Apache-2.0** if you want an explicit patent grant
-- **GPL-3.0** if you want stronger copyleft
+[MIT](./LICENSE)
 
 ---
 
