@@ -10,6 +10,8 @@ type DetailSearchParams = {
   status?: string | string[];
   tool?: string | string[];
   page?: string | string[];
+  focus?: string | string[];
+  q?: string | string[];
 };
 
 export const dynamic = "force-dynamic";
@@ -36,6 +38,8 @@ export default async function SessionDetailPage({
       initialStatusFilter={normalizeStatusFilter(firstString(resolvedSearchParams.status))}
       initialToolFilter={normalizeToolFilter(firstString(resolvedSearchParams.tool))}
       initialTranscriptPage={normalizePage(firstString(resolvedSearchParams.page))}
+      focusMessageIndex={normalizeOptionalPage(firstString(resolvedSearchParams.focus))}
+      focusQuery={firstString(resolvedSearchParams.q)?.trim() ?? ""}
     />
   );
 }
@@ -65,4 +69,9 @@ function normalizeToolFilter(value?: string): string {
 function normalizePage(value?: string): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1;
+}
+
+function normalizeOptionalPage(value?: string): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : null;
 }

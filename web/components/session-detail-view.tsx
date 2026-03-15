@@ -16,6 +16,7 @@ import {
   DatabaseIcon,
   MaintenanceIcon,
   PauseCircleIcon,
+  SearchIcon,
   SessionsIcon,
   ShieldIcon,
   SparklesIcon,
@@ -32,6 +33,8 @@ export function SessionDetailView({
   initialStatusFilter,
   initialToolFilter,
   initialTranscriptPage,
+  focusMessageIndex,
+  focusQuery,
 }: {
   session: SessionDetailRecord;
   meta: ResponseMeta;
@@ -39,6 +42,8 @@ export function SessionDetailView({
   initialStatusFilter: ToolTraceStatusFilter;
   initialToolFilter: string;
   initialTranscriptPage: number;
+  focusMessageIndex: number | null;
+  focusQuery: string;
 }) {
   const [currentTab, setCurrentTab] = useState<DetailTab>(initialTab);
   const [statusFilter, setStatusFilter] = useState<ToolTraceStatusFilter>(initialStatusFilter);
@@ -73,22 +78,25 @@ export function SessionDetailView({
     [session.toolTrace, statusFilter, toolFilter],
   );
 
+  const focusMessage = useMemo(
+    () =>
+      focusMessageIndex === null
+        ? null
+        : session.transcript.messages.find((message) => message.index === focusMessageIndex) ?? null,
+    [session.transcript.messages, focusMessageIndex],
+  );
+
   const completedToolCalls = session.toolTrace.filter((trace) => trace.status === "completed").length;
   const pendingToolCalls = session.toolTrace.filter((trace) => trace.status === "pending").length;
   const orphanResults = session.toolTrace.filter((trace) => trace.status === "orphan-result").length;
   const [toolTracePageSize, setToolTracePageSize] = useState<number>(6);
-  const toolTracePageCount = Math.max(
-    1,
-    Math.ceil(filteredToolTrace.length / toolTracePageSize),
-  );
+  const toolTracePageCount = Math.max(1, Math.ceil(filteredToolTrace.length / toolTracePageSize));
   const [toolTracePage, setToolTracePage] = useState<number>(1);
   const pagedToolTrace = useMemo(() => {
     const startIndex = (toolTracePage - 1) * toolTracePageSize;
     return filteredToolTrace.slice(startIndex, startIndex + toolTracePageSize);
   }, [filteredToolTrace, toolTracePage, toolTracePageSize]);
-  const toolTraceStart = filteredToolTrace.length === 0
-    ? 0
-    : (toolTracePage - 1) * toolTracePageSize + 1;
+  const toolTraceStart = filteredToolTrace.length === 0 ? 0 : (toolTracePage - 1) * toolTracePageSize + 1;
   const toolTraceEnd = Math.min(toolTracePage * toolTracePageSize, filteredToolTrace.length);
   const transcriptMessageCount = session.transcript.messages.length;
   const userBlocks = session.transcript.messages.filter((message) => message.role === "user").length;
@@ -104,18 +112,13 @@ export function SessionDetailView({
     .sort((left, right) => right.count - left.count || left.toolName.localeCompare(right.toolName));
 
   const [transcriptPageSize, setTranscriptPageSize] = useState<number>(12);
-  const transcriptPageCount = Math.max(
-    1,
-    Math.ceil(transcriptMessageCount / transcriptPageSize),
-  );
+  const transcriptPageCount = Math.max(1, Math.ceil(transcriptMessageCount / transcriptPageSize));
   const [transcriptPage, setTranscriptPage] = useState<number>(initialTranscriptPage);
   const pagedTranscriptMessages = useMemo(() => {
     const startIndex = (transcriptPage - 1) * transcriptPageSize;
     return session.transcript.messages.slice(startIndex, startIndex + transcriptPageSize);
   }, [session.transcript.messages, transcriptPage, transcriptPageSize]);
-  const transcriptStart = transcriptMessageCount === 0
-    ? 0
-    : (transcriptPage - 1) * transcriptPageSize + 1;
+  const transcriptStart = transcriptMessageCount === 0 ? 0 : (transcriptPage - 1) * transcriptPageSize + 1;
   const transcriptEnd = Math.min(transcriptPage * transcriptPageSize, transcriptMessageCount);
 
   useEffect(() => {
@@ -144,7 +147,7 @@ export function SessionDetailView({
           });
         }
       } catch {
-        // Silently ignore transient errors; status is best-effort only.
+        // Best-effort only.
       }
     }
 
@@ -287,6 +290,56 @@ export function SessionDetailView({
         </div>
       </section>
 
+      {focusMessage ? (
+        <section className="card stack surface-soft search-focus-card">
+          <div className="detail-panel-header search-focus-header">
+            <div>
+              <p className="eyebrow">Search match</p>
+              <h3>{focusMessage.title}</h3>
+              <p className="muted">
+                This card highlights the exact transcript message that matched your search query.
+              </p>
+            </div>
+            <div className="badge-row">
+              {focusQuery ? (
+                <Link href={`/search?q=${encodeURIComponent(focusQuery)}`} className="secondary-action">
+                  <SearchIcon className="icon icon-sm" />
+                  Back to search
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                className="primary-action"
+                onClick={() => {
+                  setCurrentTab("transcript");
+                  setTranscriptPage(Math.floor(focusMessage.index / transcriptPageSize) + 1);
+                  requestAnimationFrame(() => {
+                    document.getElementById(`message-${focusMessage.index}`)?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    });
+                  });
+                }}
+              >
+                Jump in transcript
+              </button>
+            </div>
+          </div>
+
+          <div className="badge-row">
+            <span className="badge">#{focusMessage.index + 1}</span>
+            <span className="badge">{focusMessage.role}</span>
+            <span className="badge">{focusMessage.messageType}</span>
+            {focusMessage.timestamp ? <span className="badge">{focusMessage.timestamp}</span> : null}
+            {focusQuery ? <span className="badge meta-badge meta-badge-channel">query: {focusQuery}</span> : null}
+          </div>
+
+          <article className={`transcript-item ${focusMessage.messageType} search-focus-message`}>
+            <pre>{focusMessage.content}</pre>
+          </article>
+        </section>
+      ) : null}
+
       <div className="grid cols-2">
         <section className="card stack surface-soft">
           <div>
@@ -331,10 +384,10 @@ export function SessionDetailView({
       <section className="card stack detail-tabs-shell">
         <div className="detail-tab-header">
           <div>
-            <p className="eyebrow">View</p>
-            <h3>Switch between transcript, traces, diagnostics, and export</h3>
+            <p className="eyebrow">Inspection tabs</p>
+            <h3>{tabLabel(currentTab)}</h3>
           </div>
-          <div className="tab-row detail-tab-row">
+          <div className="badge-row detail-tab-row">
             {([
               ["transcript", "Transcript"],
               ["tools", "Tool trace"],
@@ -347,7 +400,7 @@ export function SessionDetailView({
                 onClick={() => setCurrentTab(tab)}
                 className={`detail-tab-pill ${currentTab === tab ? "active" : ""}`}
               >
-                <span>{label}</span>
+                {label}
               </button>
             ))}
           </div>
@@ -356,72 +409,53 @@ export function SessionDetailView({
         {currentTab === "tools" ? (
           <div className="stack">
             <div className="detail-panel-header">
-              <div>
-                <p className="eyebrow">Tools</p>
-                <h3>Tool trace</h3>
-                <p className="muted">
-                  Pair tool calls with their results, then filter down to the exact trace you care about.
-                </p>
+              <div className="stack compact-gap">
+                <p className="eyebrow">Tool trace filters</p>
+                <h3>Filter tool activity by status or tool name</h3>
+              </div>
+              <div className="badge-row">
+                {(["all", "completed", "pending", "orphan-result"] as const).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setStatusFilter(status)}
+                    className={`detail-filter-chip ${statusFilter === status ? "active" : ""}`}
+                  >
+                    {statusLabel(status)}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setToolFilter("all")}
+                  className={`detail-filter-chip ${toolFilter === "all" ? "active" : ""}`}
+                >
+                  All tools
+                </button>
+                {toolOptions.map((toolName) => (
+                  <button
+                    key={toolName}
+                    type="button"
+                    onClick={() => setToolFilter(toolName)}
+                    className={`detail-filter-chip ${toolFilter === toolName ? "active" : ""}`}
+                  >
+                    {toolName}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="grid cols-2">
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Status filter</p>
-                <div className="badge-row">
-                  {(["all", "completed", "pending", "orphan-result"] as const).map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setStatusFilter(status)}
-                      className={`detail-filter-chip ${statusFilter === status ? "active" : ""}`}
-                    >
-                      {statusLabel(status)}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Tool filter</p>
-                <div className="badge-row">
-                  <button
-                    type="button"
-                    onClick={() => setToolFilter("all")}
-                    className={`detail-filter-chip ${toolFilter === "all" ? "active" : ""}`}
-                  >
-                    All tools
-                  </button>
-                  {toolOptions.map((toolName) => (
-                    <button
-                      key={toolName}
-                      type="button"
-                      onClick={() => setToolFilter(toolName)}
-                      className={`detail-filter-chip ${toolFilter === toolName ? "active" : ""}`}
-                    >
-                      {toolName}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            </div>
-
-            <div className="grid cols-4 responsive-grid">
+            <div className="grid cols-3 responsive-grid">
               <div className="stats-tile soft-contrast">
                 <span className="muted">Completed</span>
                 <strong>{completedToolCalls}</strong>
               </div>
               <div className="stats-tile soft-contrast">
-                <span className="muted">Waiting</span>
+                <span className="muted">Pending</span>
                 <strong>{pendingToolCalls}</strong>
               </div>
               <div className="stats-tile soft-contrast">
                 <span className="muted">Result-only</span>
                 <strong>{orphanResults}</strong>
-              </div>
-              <div className="stats-tile soft-contrast">
-                <span className="muted">Visible</span>
-                <strong>{filteredToolTrace.length}</strong>
               </div>
             </div>
 
@@ -496,51 +530,32 @@ export function SessionDetailView({
                         <p className="eyebrow">Trace #{trace.index + 1}</p>
                         <h3>{trace.toolName}</h3>
                       </div>
-                      <div className="badge-row">
-                        <span className={`badge ${statusTone(trace.status)}`}>
-                          {statusLabel(trace.status)}
-                        </span>
-                        {trace.startedAt ? <span className="badge">start: {trace.startedAt}</span> : null}
-                        {trace.finishedAt ? <span className="badge">finish: {trace.finishedAt}</span> : null}
-                      </div>
+                      <span className={`badge ${statusTone(trace.status)}`}>{statusLabel(trace.status)}</span>
                     </div>
 
                     <div className="trace-meta-grid">
-                      <div className="stats-tile soft-contrast">
+                      <div className="stats-tile soft-contrast polished-pane">
                         <span className="muted">Call entry</span>
-                        <strong>{trace.callEntryIndex !== null ? `#${trace.callEntryIndex + 1}` : "n/a"}</strong>
+                        <strong>{trace.callEntryIndex === null ? "n/a" : `#${trace.callEntryIndex + 1}`}</strong>
                       </div>
-                      <div className="stats-tile soft-contrast">
+                      <div className="stats-tile soft-contrast polished-pane">
                         <span className="muted">Result entry</span>
-                        <strong>{trace.resultEntryIndex !== null ? `#${trace.resultEntryIndex + 1}` : "n/a"}</strong>
+                        <strong>{trace.resultEntryIndex === null ? "n/a" : `#${trace.resultEntryIndex + 1}`}</strong>
                       </div>
-                      <div className="stats-tile soft-contrast">
-                        <span className="muted">Output size</span>
-                        <strong>{trace.outputChars !== null ? `${trace.outputChars.toLocaleString()} chars` : "n/a"}</strong>
+                      <div className="stats-tile soft-contrast polished-pane">
+                        <span className="muted">Output chars</span>
+                        <strong>{trace.outputChars?.toLocaleString() ?? "n/a"}</strong>
                       </div>
                     </div>
 
                     <div className="grid cols-2">
-                      <section className="trace-pane polished-pane">
-                        <p className="eyebrow">Input preview</p>
-                        <p className="muted">{trace.inputPreview ?? "No captured tool-call payload."}</p>
-                        {trace.input ? (
-                          <details>
-                            <summary>Show full input</summary>
-                            <pre>{trace.input}</pre>
-                          </details>
-                        ) : null}
+                      <section className="trace-pane polished-pane stack">
+                        <p className="eyebrow">Input</p>
+                        <pre>{trace.input ?? "No tool input captured."}</pre>
                       </section>
-
-                      <section className="trace-pane polished-pane">
-                        <p className="eyebrow">Output preview</p>
-                        <p className="muted">{trace.outputPreview ?? "No captured tool-result payload."}</p>
-                        {trace.output ? (
-                          <details>
-                            <summary>Show full output</summary>
-                            <pre>{trace.output}</pre>
-                          </details>
-                        ) : null}
+                      <section className="trace-pane polished-pane stack">
+                        <p className="eyebrow">Output</p>
+                        <pre>{trace.output ?? "No tool output captured yet."}</pre>
                       </section>
                     </div>
                   </article>
@@ -549,114 +564,66 @@ export function SessionDetailView({
             </div>
           </div>
         ) : currentTab === "stats" ? (
-          <div className="stack">
-            <div className="detail-panel-header">
+          <div className="grid cols-2">
+            <section className="card stack surface-soft">
               <div>
-                <p className="eyebrow">Stats</p>
-                <h3>Session diagnostics</h3>
-                <p className="muted">
-                  A calmer diagnostic view: model, token profile, transcript composition, and tool distribution.
-                </p>
+                <p className="eyebrow">Session stats</p>
+                <h3>Token and message composition</h3>
               </div>
-            </div>
+              <div className="kv compact-kv">
+                <span className="muted">Model</span>
+                <span>{session.model}</span>
+                <span className="muted">Provider</span>
+                <span>{session.modelProvider ?? "unknown"}</span>
+                <span className="muted">Context</span>
+                <span>{formatTokenCount(session.tokens.context)}</span>
+                <span className="muted">Total</span>
+                <span>{formatTokenCount(session.tokens.total)}</span>
+                <span className="muted">Transcript messages</span>
+                <span>{transcriptMessageCount}</span>
+                <span className="muted">User blocks</span>
+                <span>{userBlocks}</span>
+                <span className="muted">Assistant blocks</span>
+                <span>{assistantBlocks}</span>
+                <span className="muted">System blocks</span>
+                <span>{systemBlocks}</span>
+                <span className="muted">Tool calls</span>
+                <span>{toolCallBlocks}</span>
+                <span className="muted">Tool results</span>
+                <span>{toolResultBlocks}</span>
+              </div>
+            </section>
 
-            <div className="grid cols-2">
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Model + source</p>
-                <div className="grid cols-2">
-                  <div className="stats-tile soft-contrast"><span className="muted">Model</span><strong>{session.model}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Provider</span><strong>{session.modelProvider ?? "unknown"}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Session source</span><strong>{session.dataSource}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Transcript source</span><strong>{session.transcript.source}</strong></div>
+            <section className="card stack surface-soft">
+              <div>
+                <p className="eyebrow">Tool stats</p>
+                <h3>Top tools in this session</h3>
+              </div>
+              {toolCounts.length === 0 ? (
+                <p className="muted">No tool activity recorded.</p>
+              ) : (
+                <div className="list">
+                  {toolCounts.map((entry) => (
+                    <div key={entry.toolName} className="stats-row">
+                      <span>{entry.toolName}</span>
+                      <strong>{entry.count}</strong>
+                    </div>
+                  ))}
                 </div>
-              </section>
-
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Token usage</p>
-                <div className="grid cols-2">
-                  <div className="stats-tile soft-contrast"><span className="muted">Input</span><strong>{formatTokenCount(session.tokens.input)}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Output</span><strong>{formatTokenCount(session.tokens.output)}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Total</span><strong>{formatTokenCount(session.tokens.total)}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Context</span><strong>{formatTokenCount(session.tokens.context)}</strong></div>
-                </div>
-              </section>
-            </div>
-
-            <div className="grid cols-2">
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Transcript composition</p>
-                <div className="grid cols-2">
-                  <div className="stats-tile soft-contrast"><span className="muted">All entries</span><strong>{transcriptMessageCount}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">User blocks</span><strong>{userBlocks}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Assistant blocks</span><strong>{assistantBlocks}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">System blocks</span><strong>{systemBlocks}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Tool calls</span><strong>{toolCallBlocks}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Tool results</span><strong>{toolResultBlocks}</strong></div>
-                </div>
-              </section>
-
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Tool activity</p>
-                <div className="grid cols-2">
-                  <div className="stats-tile soft-contrast"><span className="muted">Distinct tools</span><strong>{toolOptions.length}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Traces</span><strong>{session.toolTrace.length}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Completed</span><strong>{completedToolCalls}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Waiting</span><strong>{pendingToolCalls}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Result-only</span><strong>{orphanResults}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Compaction</span><strong>{session.status.hasCompaction ? "yes" : "no"}</strong></div>
-                </div>
-              </section>
-            </div>
-
-            <div className="grid cols-2">
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Top tools</p>
-                {toolCounts.length === 0 ? (
-                  <p className="muted">No tool traces captured for this session.</p>
-                ) : (
-                  <div className="list">
-                    {toolCounts.map((tool) => (
-                      <div key={tool.toolName} className="stats-row elevated-row">
-                        <span>{tool.toolName}</span>
-                        <strong>{tool.count}</strong>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Session state</p>
-                <div className="grid cols-2">
-                  <div className="stats-tile soft-contrast"><span className="muted">Kind</span><strong>{session.kind}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Channel</span><strong>{session.channel}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Agent</span><strong>{session.agentId ?? "unknown"}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Aborted</span><strong>{session.status.abortedLastRun ? "yes" : "no"}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Subagent</span><strong>{session.status.hasSubagent ? "yes" : "no"}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Warnings</span><strong>{meta.warnings?.length ? meta.warnings.length : 0}</strong></div>
-                </div>
-              </section>
-            </div>
+              )}
+            </section>
           </div>
         ) : currentTab === "export" ? (
-          <div className="stack">
-            <div className="detail-panel-header">
-              <div>
-                <p className="eyebrow">Export</p>
-                <h3>Portable debug bundle</h3>
+          <div className="grid cols-2">
+            <section className="card stack surface-soft export-panel">
+              <div className="stack compact-gap">
+                <p className="eyebrow">Download</p>
+                <h3>Session export bundle</h3>
                 <p className="muted">
-                  Export the current session as structured JSON or clean Markdown, ready for issues, docs, or sharing with other people.
+                  Export this session as JSON or Markdown for documentation, issues, or external analysis.
                 </p>
               </div>
-            </div>
-
-            <div className="grid cols-2">
-              <section className="card stack surface-soft export-panel">
-                <p className="eyebrow">JSON bundle</p>
-                <h3>Structured and machine-friendly</h3>
-                <p className="muted">
-                  Includes normalized session detail, tool traces, transcript, metadata, and summary counts.
-                </p>
+              <div className="badge-row">
                 <a
                   href={`${session.apiPath}/export?format=json`}
                   className="primary-action export-button"
@@ -664,14 +631,6 @@ export function SessionDetailView({
                 >
                   Export JSON bundle
                 </a>
-              </section>
-
-              <section className="card stack surface-soft export-panel">
-                <p className="eyebrow">Markdown</p>
-                <h3>Readable and easy to paste</h3>
-                <p className="muted">
-                  Best for GitHub issues, chats, notes, and quick sharing with humans.
-                </p>
                 <a
                   href={`${session.apiPath}/export?format=md`}
                   className="secondary-action export-button"
@@ -679,29 +638,17 @@ export function SessionDetailView({
                 >
                   Export Markdown
                 </a>
-              </section>
-            </div>
+              </div>
+            </section>
 
-            <div className="grid cols-2">
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Bundle contents</p>
-                <div className="grid cols-2">
-                  <div className="stats-tile soft-contrast"><span className="muted">Transcript entries</span><strong>{transcriptMessageCount}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Tool traces</span><strong>{session.toolTrace.length}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Warnings</span><strong>{meta.warnings?.length ? meta.warnings.length : 0}</strong></div>
-                  <div className="stats-tile soft-contrast"><span className="muted">Sources</span><strong>{session.dataSource} / {session.transcript.source}</strong></div>
-                </div>
-              </section>
-
-              <section className="card stack surface-soft">
-                <p className="eyebrow">Recommended use</p>
-                <ul className="muted">
-                  <li>Use JSON when you want structure, reprocessing, or future import.</li>
-                  <li>Use Markdown when you want something presentable immediately.</li>
-                  <li>Both formats include transcript, tool traces, and summary metadata.</li>
-                </ul>
-              </section>
-            </div>
+            <section className="card stack surface-soft">
+              <p className="eyebrow">Recommended use</p>
+              <ul className="muted">
+                <li>Use JSON when you want structure, reprocessing, or future import.</li>
+                <li>Use Markdown when you want something presentable immediately.</li>
+                <li>Both formats include transcript, tool traces, and summary metadata.</li>
+              </ul>
+            </section>
           </div>
         ) : (
           <div className="stack">
@@ -709,9 +656,10 @@ export function SessionDetailView({
               <div>
                 <p className="eyebrow">Transcript</p>
                 <h3>Message flow</h3>
-                <p className="muted">
-                  Inspect the full turn sequence, then jump into tool traces when a block deserves a closer look.
-                </p>
+              </div>
+              <div className="badge-row">
+                <span className="badge">messages: {transcriptMessageCount}</span>
+                <span className="badge">source: {session.transcript.source}</span>
               </div>
             </div>
 
@@ -839,6 +787,13 @@ function getLiveStatusMeta(statusCode: LiveStatusCode): {
     icon: PauseCircleIcon,
     description: "No recent in-flight work detected for this session.",
   };
+}
+
+function tabLabel(tab: DetailTab): string {
+  if (tab === "tools") return "Tool trace";
+  if (tab === "stats") return "Stats";
+  if (tab === "export") return "Export";
+  return "Transcript";
 }
 
 function statusLabel(status: ToolTraceStatusFilter): string {

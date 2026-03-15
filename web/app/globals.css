@@ -896,6 +896,19 @@ h1, h2, h3, h4, p {
   font-weight: 700;
 }
 
+.search-focus-card {
+  gap: 14px;
+}
+
+.search-focus-header {
+  align-items: flex-start;
+}
+
+.search-focus-message {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: linear-gradient(180deg, rgba(219, 234, 254, 0.32), var(--surface));
+}
+
 .title-with-icon,
 .section-heading-main {
   display: flex;

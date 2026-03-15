@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 type SearchPageSearchParams = {
   q?: string | string[];
+  page?: string | string[];
 };
 
 export default async function SearchPage({
@@ -16,10 +17,20 @@ export default async function SearchPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const rawQuery = firstString(resolvedSearchParams.q)?.trim() ?? "";
+  const currentPage = normalizePage(firstString(resolvedSearchParams.page));
   const response = await searchTranscripts(rawQuery, {
-    resultLimit: 80,
+    page: currentPage,
+    pageSize: 20,
     sessionLimit: 50,
   });
+
+  const startIndex = response.meta.totalMatches === 0
+    ? 0
+    : (response.meta.page - 1) * response.meta.pageSize + 1;
+  const endIndex = Math.min(
+    response.meta.page * response.meta.pageSize,
+    response.meta.totalMatches,
+  );
 
   return (
     <div className="stack dashboard-shell">
@@ -32,7 +43,7 @@ export default async function SearchPage({
             <p className="eyebrow">Search</p>
             <h2>Transcript search</h2>
             <p className="muted">
-              Search recent session transcripts with plain-text matching and jump directly into the exact session context.
+              Search recent session transcripts with plain-text matching and jump directly into a search-focused session view.
             </p>
           </div>
         </div>
@@ -62,12 +73,40 @@ export default async function SearchPage({
           ) : null}
         </form>
 
-        <div className="badge-row">
-          <span className="badge">Results: {response.data.length}</span>
-          <span className="badge">Sessions scanned: {response.meta.sessionsScanned}</span>
-          <span className="badge">Messages scanned: {response.meta.messagesScanned}</span>
-          <span className="badge">Read-only</span>
+        <div className="transcript-toolbar sessions-toolbar">
+          <div className="badge-row transcript-toolbar-group transcript-toolbar-meta">
+            <span className="badge toolbar-page-badge">
+              Showing {startIndex}-{endIndex} of {response.meta.totalMatches}
+            </span>
+            <span className="badge toolbar-page-badge">Page {response.meta.page} / {response.meta.pageCount}</span>
+            <span className="badge toolbar-page-badge">Sessions scanned: {response.meta.sessionsScanned}</span>
+            <span className="badge toolbar-page-badge">Messages scanned: {response.meta.messagesScanned}</span>
+          </div>
+
+          <div className="badge-row transcript-toolbar-group transcript-toolbar-pagination">
+            <PageLink q={rawQuery} page={1} disabled={response.meta.page === 1}>
+              « First
+            </PageLink>
+            <PageLink q={rawQuery} page={Math.max(1, response.meta.page - 1)} disabled={response.meta.page === 1}>
+              ← Previous
+            </PageLink>
+            <PageLink
+              q={rawQuery}
+              page={Math.min(response.meta.pageCount, response.meta.page + 1)}
+              disabled={response.meta.page === response.meta.pageCount}
+            >
+              Next →
+            </PageLink>
+            <PageLink
+              q={rawQuery}
+              page={response.meta.pageCount}
+              disabled={response.meta.page === response.meta.pageCount}
+            >
+              Latest »
+            </PageLink>
+          </div>
         </div>
+
         <p className="muted">
           {rawQuery
             ? `Showing one line per match for “${rawQuery}”.`
@@ -135,6 +174,39 @@ export default async function SearchPage({
   );
 }
 
+function PageLink({
+  q,
+  page,
+  disabled,
+  children,
+}: {
+  q: string;
+  page: number;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  if (disabled) {
+    return <span className="detail-filter-chip" aria-disabled="true">{children}</span>;
+  }
+
+  const params = new URLSearchParams();
+  if (q) {
+    params.set("q", q);
+  }
+  params.set("page", String(page));
+
+  return (
+    <Link href={`/search?${params.toString()}`} className="detail-filter-chip">
+      {children}
+    </Link>
+  );
+}
+
 function firstString(value?: string | string[]): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizePage(value?: string): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1;
 }
