@@ -51,23 +51,9 @@ In short:
 
 ---
 
-## Screenshot tour
+## Preview
 
-### Dashboard
-
-![Dashboard](./docs/assets/dashboard.png)
-
-### Sessions Explorer
-
-![Sessions Explorer](./docs/assets/sessions.png)
-
-### Session Detail
-
-![Session Detail](./docs/assets/session-detail.png)
-
-### Transcript Search
-
-![Transcript Search](./docs/assets/search.png)
+![OpenClaw Inspector Dashboard](./docs/assets/dashboard.png)
 
 ---
 
