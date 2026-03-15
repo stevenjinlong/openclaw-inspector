@@ -5,7 +5,7 @@ import { getSessionDetailResponse } from "../../../lib/session-adapter";
 
 export const dynamic = "force-dynamic";
 
-type DetailTab = "transcript" | "tools";
+type DetailTab = "transcript" | "tools" | "stats";
 type ToolTraceStatusFilter = "all" | ToolTraceEntry["status"];
 type DetailSearchParams = {
   tab?: string | string[];
@@ -54,6 +54,28 @@ export default async function SessionDetailPage({
   const orphanResults = session.toolTrace.filter(
     (trace) => trace.status === "orphan-result",
   ).length;
+  const transcriptMessageCount = session.transcript.messages.length;
+  const userBlocks = session.transcript.messages.filter(
+    (message) => message.role === "user",
+  ).length;
+  const assistantBlocks = session.transcript.messages.filter(
+    (message) => message.role === "assistant",
+  ).length;
+  const systemBlocks = session.transcript.messages.filter(
+    (message) => message.role === "system",
+  ).length;
+  const toolCallBlocks = session.transcript.messages.filter(
+    (message) => message.messageType === "toolCall",
+  ).length;
+  const toolResultBlocks = session.transcript.messages.filter(
+    (message) => message.messageType === "toolResult",
+  ).length;
+  const toolCounts = toolOptions
+    .map((toolName) => ({
+      toolName,
+      count: session.toolTrace.filter((trace) => trace.toolName === toolName).length,
+    }))
+    .sort((left, right) => right.count - left.count || left.toolName.localeCompare(right.toolName));
 
   return (
     <div className="stack">
@@ -166,6 +188,12 @@ export default async function SessionDetailPage({
             className={`tab-link ${currentTab === "tools" ? "active" : ""}`}
           >
             Tool trace
+          </Link>
+          <Link
+            href={buildDetailHref(baseHref, { tab: "stats" })}
+            className={`tab-link ${currentTab === "stats" ? "active" : ""}`}
+          >
+            Stats
           </Link>
         </div>
 
@@ -321,6 +349,155 @@ export default async function SessionDetailPage({
               )}
             </div>
           </div>
+        ) : currentTab === "stats" ? (
+          <div className="stack">
+            <div>
+              <p className="eyebrow">Stats</p>
+              <h3>Session diagnostics</h3>
+              <p className="muted">
+                High-signal metadata for this session: model, tokens, transcript
+                composition, and tool activity shape.
+              </p>
+            </div>
+
+            <div className="grid cols-2">
+              <section className="card stack">
+                <p className="eyebrow">Model + source</p>
+                <div className="kv compact-kv">
+                  <span className="muted">Model</span>
+                  <span>{session.model}</span>
+                  <span className="muted">Provider</span>
+                  <span>{session.modelProvider ?? "unknown"}</span>
+                  <span className="muted">Session source</span>
+                  <span>{session.dataSource}</span>
+                  <span className="muted">Transcript source</span>
+                  <span>{session.transcript.source}</span>
+                  <span className="muted">Token freshness</span>
+                  <span>{session.tokens.fresh ? "fresh" : "stale / partial"}</span>
+                </div>
+              </section>
+
+              <section className="card stack">
+                <p className="eyebrow">Token usage</p>
+                <div className="grid cols-2">
+                  <div className="stats-tile">
+                    <span className="muted">Input</span>
+                    <strong>{formatTokenCount(session.tokens.input)}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Output</span>
+                    <strong>{formatTokenCount(session.tokens.output)}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Total</span>
+                    <strong>{formatTokenCount(session.tokens.total)}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Context</span>
+                    <strong>{formatTokenCount(session.tokens.context)}</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="grid cols-2">
+              <section className="card stack">
+                <p className="eyebrow">Transcript composition</p>
+                <div className="grid cols-2">
+                  <div className="stats-tile">
+                    <span className="muted">All entries</span>
+                    <strong>{transcriptMessageCount}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">User blocks</span>
+                    <strong>{userBlocks}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Assistant blocks</span>
+                    <strong>{assistantBlocks}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">System blocks</span>
+                    <strong>{systemBlocks}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Tool calls</span>
+                    <strong>{toolCallBlocks}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Tool results</span>
+                    <strong>{toolResultBlocks}</strong>
+                  </div>
+                </div>
+              </section>
+
+              <section className="card stack">
+                <p className="eyebrow">Tool activity</p>
+                <div className="grid cols-2">
+                  <div className="stats-tile">
+                    <span className="muted">Distinct tools</span>
+                    <strong>{toolOptions.length}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Traces</span>
+                    <strong>{session.toolTrace.length}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Completed</span>
+                    <strong>{completedToolCalls}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Waiting</span>
+                    <strong>{pendingToolCalls}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Result-only</span>
+                    <strong>{orphanResults}</strong>
+                  </div>
+                  <div className="stats-tile">
+                    <span className="muted">Compaction</span>
+                    <strong>{session.status.hasCompaction ? "yes" : "no"}</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="grid cols-2">
+              <section className="card stack">
+                <p className="eyebrow">Top tools</p>
+                {toolCounts.length === 0 ? (
+                  <p className="muted">No tool traces captured for this session.</p>
+                ) : (
+                  <div className="list">
+                    {toolCounts.map((tool) => (
+                      <div key={tool.toolName} className="stats-row">
+                        <span>{tool.toolName}</span>
+                        <strong>{tool.count}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="card stack">
+                <p className="eyebrow">Session state</p>
+                <div className="kv compact-kv">
+                  <span className="muted">Kind</span>
+                  <span>{session.kind}</span>
+                  <span className="muted">Channel</span>
+                  <span>{session.channel}</span>
+                  <span className="muted">Agent</span>
+                  <span>{session.agentId ?? "unknown"}</span>
+                  <span className="muted">Aborted</span>
+                  <span>{session.status.abortedLastRun ? "yes" : "no"}</span>
+                  <span className="muted">Subagent</span>
+                  <span>{session.status.hasSubagent ? "yes" : "no"}</span>
+                  <span className="muted">Warnings</span>
+                  <span>{meta.warnings?.length ? meta.warnings.length : 0}</span>
+                </div>
+              </section>
+            </div>
+          </div>
         ) : (
           <div className="stack">
             <div>
@@ -378,7 +555,11 @@ function firstString(value?: string | string[]): string | undefined {
 }
 
 function normalizeTab(value?: string): DetailTab {
-  return value === "tools" ? "tools" : "transcript";
+  if (value === "tools" || value === "stats") {
+    return value;
+  }
+
+  return "transcript";
 }
 
 function normalizeStatusFilter(value?: string): ToolTraceStatusFilter {
