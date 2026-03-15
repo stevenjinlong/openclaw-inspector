@@ -7,8 +7,10 @@ import {
   createAdapterDescriptor,
   type ResponseMeta,
 } from "./normalizers";
+import { withRuntimeCache } from "./runtime-cache";
 
 const MAX_BUFFER_BYTES = 20 * 1024 * 1024;
+const MAINTENANCE_PREVIEW_TTL_MS = 10000;
 
 export interface MaintenanceStorePreview {
   agentId: string;
@@ -46,59 +48,61 @@ export interface MaintenancePreviewResponse {
 }
 
 export async function getMaintenancePreviewResponse(): Promise<MaintenancePreviewResponse> {
-  const adapter = createAdapterDescriptor({
-    mode: "cli",
-    label: "Local maintenance preview adapter",
-    source: "Normalized output from `openclaw sessions cleanup --all-agents --dry-run --json`",
-    notes: [
-      "This preview is read-only and does not mutate any session store.",
-      "The data comes from the local OpenClaw CLI cleanup dry-run command.",
-    ],
+  return withRuntimeCache("maintenance-preview", MAINTENANCE_PREVIEW_TTL_MS, async () => {
+    const adapter = createAdapterDescriptor({
+      mode: "cli",
+      label: "Local maintenance preview adapter",
+      source: "Normalized output from `openclaw sessions cleanup --all-agents --dry-run --json`",
+      notes: [
+        "This preview is read-only and does not mutate any session store.",
+        "The data comes from the local OpenClaw CLI cleanup dry-run command.",
+      ],
+    });
+
+    try {
+      const payload = await runOpenClawJson([
+        "sessions",
+        "cleanup",
+        "--all-agents",
+        "--dry-run",
+        "--json",
+      ]);
+
+      const stores: MaintenanceStorePreview[] = Array.isArray(payload.stores)
+        ? payload.stores.map(normalizeMaintenanceStore)
+        : [];
+
+      const data: MaintenancePreviewData = {
+        allAgents: Boolean(payload.allAgents),
+        mode: String(payload.mode ?? "warn"),
+        dryRun: Boolean(payload.dryRun),
+        totals: {
+          stores: stores.length,
+          beforeCount: sum(stores, "beforeCount"),
+          afterCount: sum(stores, "afterCount"),
+          missing: sum(stores, "missing"),
+          pruned: sum(stores, "pruned"),
+          capped: sum(stores, "capped"),
+          wouldMutateStores: stores.filter((store) => store.wouldMutate).length,
+        },
+        stores: stores.sort((left, right) => right.beforeCount - left.beforeCount),
+      };
+
+      return {
+        data,
+        meta: buildResponseMeta(adapter, {
+          count: stores.length,
+        }),
+      };
+    } catch (error) {
+      return {
+        data: null,
+        meta: buildResponseMeta(adapter, {
+          warnings: [errorMessage(error)],
+        }),
+      };
+    }
   });
-
-  try {
-    const payload = await runOpenClawJson([
-      "sessions",
-      "cleanup",
-      "--all-agents",
-      "--dry-run",
-      "--json",
-    ]);
-
-    const stores = Array.isArray(payload.stores)
-      ? payload.stores.map(normalizeMaintenanceStore)
-      : [];
-
-    const data: MaintenancePreviewData = {
-      allAgents: Boolean(payload.allAgents),
-      mode: String(payload.mode ?? "warn"),
-      dryRun: Boolean(payload.dryRun),
-      totals: {
-        stores: stores.length,
-        beforeCount: sum(stores, "beforeCount"),
-        afterCount: sum(stores, "afterCount"),
-        missing: sum(stores, "missing"),
-        pruned: sum(stores, "pruned"),
-        capped: sum(stores, "capped"),
-        wouldMutateStores: stores.filter((store) => store.wouldMutate).length,
-      },
-      stores: stores.sort((left, right) => right.beforeCount - left.beforeCount),
-    };
-
-    return {
-      data,
-      meta: buildResponseMeta(adapter, {
-        count: stores.length,
-      }),
-    };
-  } catch (error) {
-    return {
-      data: null,
-      meta: buildResponseMeta(adapter, {
-        warnings: [errorMessage(error)],
-      }),
-    };
-  }
 }
 
 function normalizeMaintenanceStore(store: any): MaintenanceStorePreview {
@@ -121,11 +125,11 @@ function toNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function sum<T extends Record<string, number>>(
-  rows: T[],
-  key: keyof T,
+function sum(
+  rows: MaintenanceStorePreview[],
+  key: "beforeCount" | "afterCount" | "missing" | "pruned" | "capped",
 ): number {
-  return rows.reduce((total, row) => total + (typeof row[key] === "number" ? row[key] : 0), 0);
+  return rows.reduce((total, row) => total + row[key], 0);
 }
 
 function runOpenClawJson(args: string[]): Promise<any> {

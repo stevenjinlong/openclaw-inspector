@@ -23,10 +23,13 @@ import {
   type SessionSummaryRecord,
   type TranscriptSource,
 } from "./normalizers";
+import { withRuntimeCache } from "./runtime-cache";
 
 const DEFAULT_SESSION_LIMIT = 100;
 const DEFAULT_HISTORY_LIMIT = 200;
 const MAX_BUFFER_BYTES = 20 * 1024 * 1024;
+const SESSION_SOURCE_TTL_MS = 5000;
+const TRANSCRIPT_TTL_MS = 5000;
 
 type SourcePreference = "auto" | AdapterMode;
 
@@ -217,136 +220,149 @@ export async function getSessionDetailResponse(
 
 async function resolveSessionSource(): Promise<SourceResolution> {
   const preference = getSourcePreference();
-  const warnings: string[] = [];
 
-  const attemptOrder =
-    preference === "mock"
-      ? (["mock"] as const)
-      : preference === "gateway"
-        ? (["gateway", "cli", "mock"] as const)
-        : preference === "cli"
-          ? (["cli", "gateway", "mock"] as const)
-          : (["gateway", "cli", "mock"] as const);
+  return withRuntimeCache(
+    `session-source:${preference}`,
+    SESSION_SOURCE_TTL_MS,
+    async () => {
+      const warnings: string[] = [];
 
-  for (const mode of attemptOrder) {
-    if (mode === "gateway") {
-      try {
-        const payload = await runOpenClawJson([
-          "gateway",
-          "call",
-          "sessions.list",
-          "--params",
-          JSON.stringify({ limit: DEFAULT_SESSION_LIMIT }),
-        ]);
+      const attemptOrder =
+        preference === "mock"
+          ? (["mock"] as const)
+          : preference === "gateway"
+            ? (["gateway", "cli", "mock"] as const)
+            : preference === "cli"
+              ? (["cli", "gateway", "mock"] as const)
+              : (["gateway", "cli", "mock"] as const);
 
-        const rawSessions = ensureArray<RuntimeSessionLike>(payload.sessions);
+      for (const mode of attemptOrder) {
+        if (mode === "gateway") {
+          try {
+            const payload = await runOpenClawJson([
+              "gateway",
+              "call",
+              "sessions.list",
+              "--params",
+              JSON.stringify({ limit: DEFAULT_SESSION_LIMIT }),
+            ]);
+
+            const rawSessions = ensureArray<RuntimeSessionLike>(payload.sessions);
+
+            return {
+              mode: "gateway",
+              adapter: createAdapterDescriptor({ mode: "gateway" }),
+              rawSessions,
+              warnings,
+            };
+          } catch (error) {
+            warnings.push(`Gateway sessions.list unavailable: ${errorMessage(error)}`);
+          }
+
+          continue;
+        }
+
+        if (mode === "cli") {
+          try {
+            const payload = await runOpenClawJson(["sessions", "--all-agents", "--json"]);
+            const rawSessions = ensureArray<RuntimeSessionLike>(payload.sessions).slice(
+              0,
+              DEFAULT_SESSION_LIMIT,
+            );
+
+            return {
+              mode: "cli",
+              adapter: createAdapterDescriptor({ mode: "cli" }),
+              rawSessions,
+              warnings,
+            };
+          } catch (error) {
+            warnings.push(`CLI sessions --all-agents --json unavailable: ${errorMessage(error)}`);
+          }
+
+          continue;
+        }
 
         return {
-          mode: "gateway",
-          adapter: createAdapterDescriptor({ mode: "gateway" }),
-          rawSessions,
+          mode: "mock",
+          adapter: createAdapterDescriptor({
+            mode: "mock",
+            notes: [
+              "Fell back to mock sessions because live OpenClaw data could not be loaded.",
+              ...warnings,
+            ],
+          }),
+          rawSessions: [],
           warnings,
         };
-      } catch (error) {
-        warnings.push(`Gateway sessions.list unavailable: ${errorMessage(error)}`);
       }
 
-      continue;
-    }
-
-    if (mode === "cli") {
-      try {
-        const payload = await runOpenClawJson(["sessions", "--all-agents", "--json"]);
-        const rawSessions = ensureArray<RuntimeSessionLike>(payload.sessions).slice(
-          0,
-          DEFAULT_SESSION_LIMIT,
-        );
-
-        return {
-          mode: "cli",
-          adapter: createAdapterDescriptor({ mode: "cli" }),
-          rawSessions,
-          warnings,
-        };
-      } catch (error) {
-        warnings.push(`CLI sessions --all-agents --json unavailable: ${errorMessage(error)}`);
-      }
-
-      continue;
-    }
-
-    return {
-      mode: "mock",
-      adapter: createAdapterDescriptor({
+      return {
         mode: "mock",
-        notes: [
-          "Fell back to mock sessions because live OpenClaw data could not be loaded.",
-          ...warnings,
-        ],
-      }),
-      rawSessions: [],
-      warnings,
-    };
-  }
-
-  return {
-    mode: "mock",
-    adapter: createAdapterDescriptor({ mode: "mock" }),
-    rawSessions: [],
-    warnings,
-  };
+        adapter: createAdapterDescriptor({ mode: "mock" }),
+        rawSessions: [],
+        warnings,
+      };
+    },
+  );
 }
 
 async function resolveTranscript(
   sessionKey: string,
   transcriptPath: string | null,
 ): Promise<TranscriptResolution> {
-  const warnings: string[] = [];
+  return withRuntimeCache(
+    `transcript:${sessionKey}:${transcriptPath ?? "none"}`,
+    TRANSCRIPT_TTL_MS,
+    async () => {
+      const warnings: string[] = [];
 
-  try {
-    const payload = await runOpenClawJson([
-      "gateway",
-      "call",
-      "chat.history",
-      "--params",
-      JSON.stringify({ sessionKey, limit: DEFAULT_HISTORY_LIMIT }),
-    ]);
+      try {
+        const payload = await runOpenClawJson([
+          "gateway",
+          "call",
+          "chat.history",
+          "--params",
+          JSON.stringify({ sessionKey, limit: DEFAULT_HISTORY_LIMIT }),
+        ]);
 
-    return {
-      source: "gateway",
-      messages: ensureArray<RuntimeTranscriptMessage>(payload.messages),
-      hasCompaction: false,
-      warnings,
-    };
-  } catch (error) {
-    warnings.push(`Gateway chat.history unavailable: ${errorMessage(error)}`);
-  }
+        return {
+          source: "gateway",
+          messages: ensureArray<RuntimeTranscriptMessage>(payload.messages),
+          hasCompaction: false,
+          warnings,
+        };
+      } catch (error) {
+        warnings.push(`Gateway chat.history unavailable: ${errorMessage(error)}`);
+      }
 
-  if (transcriptPath) {
-    try {
-      const local = await readTranscriptFromFile(transcriptPath);
+      if (transcriptPath) {
+        try {
+          const local = await readTranscriptFromFile(transcriptPath);
+
+          return {
+            source: "local-file",
+            messages: local.messages,
+            hasCompaction: local.hasCompaction,
+            warnings,
+          };
+        } catch (error) {
+          warnings.push(`Local transcript fallback failed: ${errorMessage(error)}`);
+        }
+      }
 
       return {
-        source: "local-file",
-        messages: local.messages,
-        hasCompaction: local.hasCompaction,
+        source: "mock",
+        messages: [
+          createSyntheticSystemMessage(
+            "Transcript unavailable. Gateway history failed and no readable local transcript file was found.",
+          ),
+        ],
+        hasCompaction: false,
         warnings,
       };
-    } catch (error) {
-      warnings.push(`Local transcript fallback failed: ${errorMessage(error)}`);
-    }
-  }
-
-  return {
-    source: "mock",
-    messages: [
-      createSyntheticSystemMessage(
-        "Transcript unavailable. Gateway history failed and no readable local transcript file was found.",
-      ),
-    ],
-    hasCompaction: false,
-    warnings,
-  };
+    },
+  );
 }
 
 async function readTranscriptFromFile(path: string): Promise<{
