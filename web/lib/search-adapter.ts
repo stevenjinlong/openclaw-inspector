@@ -6,7 +6,7 @@ import { withRuntimeCache } from "./runtime-cache";
 
 const SEARCH_TTL_MS = 5000;
 const DEFAULT_SESSION_SCAN_LIMIT = 50;
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_RESULT_LIMIT = 200;
 const TRANSCRIPT_DEFAULT_PAGE_SIZE = 12;
 
 export interface SearchHitRecord {
@@ -34,25 +34,22 @@ export interface TranscriptSearchResponse {
   meta: ResponseMeta & {
     sessionsScanned: number;
     messagesScanned: number;
-    page: number;
-    pageSize: number;
-    pageCount: number;
+    resultLimit: number;
     totalMatches: number;
     sessionLimit: number;
+    truncated: boolean;
   };
 }
 
 export async function searchTranscripts(
   query: string,
   options?: {
-    page?: number;
-    pageSize?: number;
+    resultLimit?: number;
     sessionLimit?: number;
   },
 ): Promise<TranscriptSearchResponse> {
   const normalizedQuery = query.trim();
-  const page = clampInteger(options?.page ?? 1, 1, 10_000);
-  const pageSize = clampInteger(options?.pageSize ?? DEFAULT_PAGE_SIZE, 1, 100);
+  const resultLimit = clampInteger(options?.resultLimit ?? DEFAULT_RESULT_LIMIT, 1, 500);
   const sessionLimit = clampInteger(options?.sessionLimit ?? DEFAULT_SESSION_SCAN_LIMIT, 1, 100);
 
   const { data: sessions, meta } = await listSessionsResponse();
@@ -66,23 +63,28 @@ export async function searchTranscripts(
         count: 0,
         sessionsScanned: 0,
         messagesScanned: 0,
-        page: 1,
-        pageSize,
-        pageCount: 1,
+        resultLimit,
         totalMatches: 0,
         sessionLimit,
+        truncated: false,
       },
     };
   }
 
-  const cacheKey = `transcript-search:${normalizedQuery.toLowerCase()}:${sessionLimit}`;
+  const cacheKey = `transcript-search:${normalizedQuery.toLowerCase()}:${resultLimit}:${sessionLimit}`;
 
-  const cached = await withRuntimeCache(cacheKey, SEARCH_TTL_MS, async () => {
+  return withRuntimeCache(cacheKey, SEARCH_TTL_MS, async () => {
     const searchSessions = sessions.slice(0, sessionLimit);
     const hits: SearchHitRecord[] = [];
     let messagesScanned = 0;
+    let truncated = false;
 
     for (const session of searchSessions) {
+      if (hits.length >= resultLimit) {
+        truncated = true;
+        break;
+      }
+
       const detail = await getSessionDetail(session.key);
       if (!detail) {
         continue;
@@ -96,37 +98,29 @@ export async function searchTranscripts(
         }
 
         hits.push(buildSearchHit(detail, message, normalizedQuery, hits.length));
+
+        if (hits.length >= resultLimit) {
+          truncated = true;
+          break;
+        }
       }
     }
 
     return {
-      hits,
-      sessionsScanned: searchSessions.length,
-      messagesScanned,
-      adapterMeta: meta,
-    };
+      query: normalizedQuery,
+      data: hits,
+      meta: {
+        ...meta,
+        count: hits.length,
+        sessionsScanned: searchSessions.length,
+        messagesScanned,
+        resultLimit,
+        totalMatches: hits.length,
+        sessionLimit,
+        truncated,
+      },
+    } satisfies TranscriptSearchResponse;
   });
-
-  const pageCount = Math.max(1, Math.ceil(cached.hits.length / pageSize));
-  const safePage = Math.min(page, pageCount);
-  const startIndex = (safePage - 1) * pageSize;
-  const data = cached.hits.slice(startIndex, startIndex + pageSize);
-
-  return {
-    query: normalizedQuery,
-    data,
-    meta: {
-      ...cached.adapterMeta,
-      count: data.length,
-      sessionsScanned: cached.sessionsScanned,
-      messagesScanned: cached.messagesScanned,
-      page: safePage,
-      pageSize,
-      pageCount,
-      totalMatches: cached.hits.length,
-      sessionLimit,
-    },
-  } satisfies TranscriptSearchResponse;
 }
 
 function matchesQuery(message: TranscriptEntry, query: string): boolean {
