@@ -244,11 +244,15 @@ h1, h2, h3, h4, p {
 .hero-card {
   padding: 28px;
   display: grid;
-  grid-template-columns: 1.4fr 0.9fr;
+  grid-template-columns: 1fr;
   gap: 22px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(245, 247, 251, 0.98)),
     var(--surface);
+}
+
+.hero-card-minimal {
+  min-height: 0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -274,6 +278,23 @@ h1, h2, h3, h4, p {
   max-width: 56ch;
   font-size: 15px;
   line-height: 1.6;
+}
+
+.hero-inline-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.hero-inline-stats strong {
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  margin-right: 6px;
 }
 
 .hero-actions {

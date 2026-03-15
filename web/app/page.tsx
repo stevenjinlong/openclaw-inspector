@@ -52,7 +52,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="stack dashboard-shell">
-      <section className="hero-card">
+      <section className="hero-card hero-card-minimal">
         <div className="hero-copy stack">
           <p className="eyebrow">OpenClaw Inspector</p>
           <h2 className="hero-title">
@@ -63,6 +63,13 @@ export default async function DashboardPage() {
             actually scan in seconds.
           </p>
 
+          <div className="hero-inline-stats">
+            <span><strong>{totalSessions}</strong> sessions</span>
+            <span><strong>{distinctAgents}</strong> agents</span>
+            <span><strong>{distinctChannels}</strong> channels</span>
+            <span><strong>{attentionSessions.length}</strong> need attention</span>
+          </div>
+
           <div className="hero-actions badge-row">
             <Link href="/sessions" className="primary-action">
               Explore sessions
@@ -70,25 +77,6 @@ export default async function DashboardPage() {
             <Link href="/maintenance" className="secondary-action">
               Maintenance preview
             </Link>
-          </div>
-        </div>
-
-        <div className="hero-summary">
-          <div className="summary-tile accent">
-            <span className="muted">Active sessions</span>
-            <strong>{totalSessions}</strong>
-          </div>
-          <div className="summary-tile">
-            <span className="muted">Agents</span>
-            <strong>{distinctAgents}</strong>
-          </div>
-          <div className="summary-tile">
-            <span className="muted">Channels</span>
-            <strong>{distinctChannels}</strong>
-          </div>
-          <div className="summary-tile warm">
-            <span className="muted">Needs attention</span>
-            <strong>{attentionSessions.length}</strong>
           </div>
         </div>
       </section>
