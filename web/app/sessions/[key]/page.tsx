@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { SessionDetailView } from "../../../components/session-detail-view";
 import { getSessionDetailResponse } from "../../../lib/session-adapter";
 
-type DetailTab = "transcript" | "tools" | "topology" | "stats" | "export";
+type DetailTab = "transcript" | "tools" | "stats" | "export";
 type ToolTraceStatusFilter = "all" | "completed" | "pending" | "orphan-result";
 type DetailSearchParams = {
   tab?: string | string[];
@@ -49,7 +49,7 @@ function firstString(value?: string | string[]): string | undefined {
 }
 
 function normalizeTab(value?: string): DetailTab {
-  if (value === "tools" || value === "topology" || value === "stats" || value === "export") {
+  if (value === "tools" || value === "stats" || value === "export") {
     return value;
   }
 

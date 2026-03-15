@@ -16,7 +16,6 @@ import {
   CopyIcon,
   DatabaseIcon,
   MaintenanceIcon,
-  NetworkIcon,
   PauseCircleIcon,
   SearchIcon,
   SessionsIcon,
@@ -24,7 +23,7 @@ import {
   SparklesIcon,
 } from "./ui-icons";
 
-type DetailTab = "transcript" | "tools" | "topology" | "stats" | "export";
+type DetailTab = "transcript" | "tools" | "stats" | "export";
 type LiveStatusCode = "idle" | "llm-running" | "tools-running" | "possibly-stuck";
 type ToolTraceStatusFilter = "all" | ToolTraceEntry["status"];
 
@@ -55,29 +54,6 @@ export function SessionDetailView({
     label: string;
     reason: string;
   } | null>(null);
-  const [topology, setTopology] = useState<{
-    root: {
-      key: string;
-      displayName: string;
-      href: string | null;
-      channel: string | null;
-      kind: string | null;
-      model: string | null;
-      evidenceCount: number;
-      exists: boolean;
-    };
-    children: Array<{
-      key: string;
-      displayName: string;
-      href: string | null;
-      channel: string | null;
-      kind: string | null;
-      model: string | null;
-      evidenceCount: number;
-      exists: boolean;
-    }>;
-  } | null>(null);
-  const [topologyLoading, setTopologyLoading] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const toolOptions = useMemo(
@@ -187,37 +163,6 @@ export function SessionDetailView({
       window.clearInterval(intervalId);
     };
   }, [session.apiPath]);
-
-  useEffect(() => {
-    if (currentTab !== "topology" || topology || topologyLoading) {
-      return;
-    }
-
-    let cancelled = false;
-    setTopologyLoading(true);
-
-    fetch(`${session.apiPath}/topology`)
-      .then(async (response) => {
-        if (!response.ok) {
-          return null;
-        }
-        return response.json();
-      })
-      .then((payload) => {
-        if (!cancelled && payload?.data) {
-          setTopology(payload.data);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setTopologyLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentTab, topology, topologyLoading, session.apiPath]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -459,7 +404,6 @@ export function SessionDetailView({
             {([
               ["transcript", "Transcript"],
               ["tools", "Tool trace"],
-              ["topology", "Topology"],
               ["stats", "Stats"],
               ["export", "Export"],
             ] as const).map(([tab, label]) => (
@@ -631,81 +575,6 @@ export function SessionDetailView({
                 ))
               )}
             </div>
-          </div>
-        ) : currentTab === "topology" ? (
-          <div className="stack">
-            <div className="detail-panel-header">
-              <div>
-                <p className="eyebrow">Subagent topology</p>
-                <h3>Referenced subagent sessions</h3>
-                <p className="muted">
-                  First-pass topology inferred from subagent session keys mentioned in transcript or tool payloads.
-                </p>
-              </div>
-              {topology ? <span className="badge">children: {topology.children.length}</span> : null}
-            </div>
-
-            {topologyLoading ? (
-              <div className="card stack surface-soft">
-                <p className="muted">Loading topology…</p>
-              </div>
-            ) : !topology || topology.children.length === 0 ? (
-              <div className="empty-state detail-empty-state">
-                <h3>No referenced subagent sessions found</h3>
-                <p className="muted">
-                  This session does not currently expose any subagent session keys in transcript or tool activity.
-                </p>
-              </div>
-            ) : (
-              <div className="topology-shell">
-                <div className="topology-root-card">
-                  <div className="badge-row">
-                    <span className="badge meta-badge meta-badge-kind">
-                      <NetworkIcon className="icon icon-sm" />
-                      root
-                    </span>
-                    {topology.root.channel ? <span className="badge">{topology.root.channel}</span> : null}
-                    {topology.root.kind ? <span className="badge">{topology.root.kind}</span> : null}
-                  </div>
-                  <h3>{topology.root.displayName}</h3>
-                  <p className="muted mono">{topology.root.key}</p>
-                </div>
-
-                <div className="topology-children-list">
-                  {topology.children.map((child) => {
-                    const node = (
-                      <div className="topology-node-content">
-                        <div className="badge-row">
-                          <span className="badge meta-badge meta-badge-channel">
-                            <NetworkIcon className="icon icon-sm" />
-                            subagent
-                          </span>
-                          <span className="badge">evidence: {child.evidenceCount}</span>
-                          {child.exists ? <span className="badge good">indexed</span> : <span className="badge warn">external</span>}
-                        </div>
-                        <strong>{child.displayName}</strong>
-                        <span className="muted mono">{child.key}</span>
-                        <div className="badge-row">
-                          {child.channel ? <span className="badge">{child.channel}</span> : null}
-                          {child.kind ? <span className="badge">{child.kind}</span> : null}
-                          {child.model ? <span className="badge">{child.model}</span> : null}
-                        </div>
-                      </div>
-                    );
-
-                    return child.href ? (
-                      <Link key={child.key} href={child.href} className="topology-node elevated-row">
-                        {node}
-                      </Link>
-                    ) : (
-                      <div key={child.key} className="topology-node">
-                        {node}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         ) : currentTab === "stats" ? (
           <div className="grid cols-2">
@@ -1002,7 +871,6 @@ function getLiveStatusMeta(statusCode: LiveStatusCode): {
 
 function tabLabel(tab: DetailTab): string {
   if (tab === "tools") return "Tool trace";
-  if (tab === "topology") return "Topology";
   if (tab === "stats") return "Stats";
   if (tab === "export") return "Export";
   return "Transcript";
