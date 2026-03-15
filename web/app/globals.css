@@ -457,6 +457,22 @@ h1, h2, h3, h4, p {
   background: linear-gradient(180deg, rgba(255, 228, 230, 0.76), var(--surface));
 }
 
+.settings-hero-card {
+  gap: 20px;
+}
+
+.settings-hero-copy {
+  gap: 16px;
+}
+
+.settings-hero-title {
+  max-width: 18ch;
+}
+
+.settings-hero-summary {
+  align-items: stretch;
+}
+
 .settings-form-card {
   gap: 18px;
 }
@@ -500,6 +516,11 @@ h1, h2, h3, h4, p {
   letter-spacing: -0.03em;
 }
 
+.settings-mode-hint {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .settings-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -540,6 +561,43 @@ h1, h2, h3, h4, p {
 .settings-note,
 .settings-error {
   font-size: 12px;
+}
+
+.settings-inline-status {
+  margin-bottom: 2px;
+}
+
+.settings-scope-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-scope-row {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
+}
+
+.settings-scope-row strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.settings-recipes-grid {
+  align-items: stretch;
+}
+
+.settings-recipe-card {
+  min-height: 0;
+}
+
+.settings-recipe-card h3 {
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .hero-summary {

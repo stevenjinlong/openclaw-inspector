@@ -73,31 +73,37 @@ const SOURCE_OPTIONS: Array<{
   value: InspectorSourceMode;
   label: string;
   description: string;
+  recommendation: string;
 }> = [
   {
     value: "auto-local",
     label: "Auto local",
     description: "Prefer local Gateway, then local CLI, then mock fallback.",
+    recommendation: "Best default when Inspector and OpenClaw live on the same machine.",
   },
   {
     value: "local-gateway",
     label: "Local Gateway",
     description: "Pin Inspector to the local Gateway only.",
+    recommendation: "Use when you want a strict live Gateway read path and no CLI fallback.",
   },
   {
     value: "local-cli",
     label: "Local CLI",
     description: "Read local session data through the CLI adapter.",
+    recommendation: "Useful when the local Gateway is off but the machine still has OpenClaw installed.",
   },
   {
     value: "remote-gateway",
     label: "Remote Gateway",
     description: "Use a remote Gateway URL plus explicit credentials.",
+    recommendation: "For a local browser/UI with OpenClaw running on a server or another workstation.",
   },
   {
     value: "mock",
     label: "Mock",
     description: "Force mock sample data for UI work and demos.",
+    recommendation: "Good for design passes, screenshots, and developing without live session data.",
   },
 ];
 
@@ -117,6 +123,10 @@ export function SettingsControlPanel({
     () => SOURCE_OPTIONS.find((option) => option.value === form.sourceMode) ?? SOURCE_OPTIONS[0],
     [form.sourceMode],
   );
+  const remoteUrlConfigured = form.remoteGateway.url.trim().length > 0;
+  const remoteAuthConfigured =
+    form.remoteGateway.token.trim().length > 0 || form.remoteGateway.password.trim().length > 0;
+  const remoteReady = remoteUrlConfigured && remoteAuthConfigured;
 
   async function submit(action: "save" | "test") {
     setBusyAction(action);
@@ -148,8 +158,8 @@ export function SettingsControlPanel({
         kind: "good",
         text:
           action === "save"
-            ? "Settings saved. Inspector will use the new source configuration on the next data read."
-            : "Connection test completed. Review the runtime cards below.",
+            ? "Settings saved. Inspector will use the new source configuration on the next data read." 
+            : "Connection test completed. Use the health cards below to confirm the source you want is actually reachable.",
       });
     } catch (error) {
       setFeedback({
@@ -171,8 +181,8 @@ export function SettingsControlPanel({
           <div>
             <p className="eyebrow">Settings</p>
             <h2>Data source control panel</h2>
-            <p className="muted">
-              Control where Inspector reads from: local Gateway, local CLI, mock data, or a remote Gateway.
+            <p className="muted dashboard-note">
+              Choose where Inspector reads from, verify what is actually reachable, and configure a remote Gateway when the UI runs on a different machine than OpenClaw.
             </p>
           </div>
         </div>
@@ -181,8 +191,54 @@ export function SettingsControlPanel({
         </span>
       </div>
 
-      <section className="card glass-panel stack">
-        <div className="grid cols-3">
+      <section className="card hero-card hero-card-stacked settings-hero-card">
+        <div className="stack hero-copy settings-hero-copy">
+          <div className="badge-row">
+            <span className="badge">Selected mode: {activeMode.label}</span>
+            <span className={`badge ${snapshot.runtime.effectiveSource.remote ? "warn" : "good"}`}>
+              {snapshot.runtime.effectiveSource.remote ? "Remote read path" : "Local read path"}
+            </span>
+            <span className="badge">Read-only</span>
+          </div>
+
+          <div className="stack compact-gap">
+            <h3 className="hero-title settings-hero-title">Point Inspector at the right source, not the wrong machine.</h3>
+            <p className="hero-subtitle">
+              Sessions, Session Detail, Search, and Health all follow this setting. Maintenance remains local-only because cleanup dry-runs execute on the machine running Inspector.
+            </p>
+          </div>
+
+          <div className="badge-row hero-actions">
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => setForm(snapshot.settings)}
+              disabled={busyAction !== null || !dirty}
+            >
+              Reset changes
+            </button>
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => submit("test")}
+              disabled={busyAction !== null}
+            >
+              <SearchIcon className="icon icon-sm" />
+              {busyAction === "test" ? "Testing..." : "Run connection test"}
+            </button>
+            <button
+              type="button"
+              className="primary-action"
+              onClick={() => submit("save")}
+              disabled={busyAction !== null || !dirty}
+            >
+              <ShieldIcon className="icon icon-sm" />
+              {busyAction === "save" ? "Saving..." : "Save source settings"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid cols-3 settings-hero-summary">
           <div className="summary-tile accent compact-summary">
             <span className="muted">Effective source</span>
             <strong>{snapshot.runtime.effectiveSource.label}</strong>
@@ -191,11 +247,11 @@ export function SettingsControlPanel({
           <div className="summary-tile compact-summary">
             <span className="muted">Selected mode</span>
             <strong>{activeMode.label}</strong>
-            <p className="muted">{activeMode.description}</p>
+            <p className="muted">{activeMode.recommendation}</p>
           </div>
           <div className="summary-tile warm compact-summary">
-            <span className="muted">Storage</span>
-            <strong>Local file</strong>
+            <span className="muted">Stored on this machine</span>
+            <strong>Inspector settings</strong>
             <p className="muted mono">{snapshot.storage.path}</p>
           </div>
         </div>
@@ -214,37 +270,10 @@ export function SettingsControlPanel({
             <p className="eyebrow">Source mode</p>
             <h3>Choose how Inspector resolves session data</h3>
             <p className="muted">
-              This controls the adapters behind Sessions, Session Detail, Search, and health reads.
+              Think of this as the read-path policy for the product, not just a technical toggle.
             </p>
           </div>
-          <div className="badge-row">
-            <button
-              type="button"
-              className="secondary-action"
-              onClick={() => setForm(snapshot.settings)}
-              disabled={busyAction !== null || !dirty}
-            >
-              Reset changes
-            </button>
-            <button
-              type="button"
-              className="secondary-action"
-              onClick={() => submit("test")}
-              disabled={busyAction !== null}
-            >
-              <SearchIcon className="icon icon-sm" />
-              {busyAction === "test" ? "Testing..." : "Test connection"}
-            </button>
-            <button
-              type="button"
-              className="primary-action"
-              onClick={() => submit("save")}
-              disabled={busyAction !== null || !dirty}
-            >
-              <ShieldIcon className="icon icon-sm" />
-              {busyAction === "save" ? "Saving..." : "Save settings"}
-            </button>
-          </div>
+          <span className="badge">Applies to Sessions, Detail, Search, Health</span>
         </div>
 
         <div className="settings-mode-grid">
@@ -268,128 +297,179 @@ export function SettingsControlPanel({
                 </span>
                 <strong>{option.label}</strong>
                 <p className="muted">{option.description}</p>
+                <p className="muted settings-mode-hint">{option.recommendation}</p>
               </button>
             );
           })}
         </div>
+      </section>
 
-        <div className="grid cols-2">
-          <div className="card stack soft-contrast">
-            <div className="metric-card-header">
-              <span className="metric-icon-badge tone-blue">
-                <MonitorIcon className="icon" />
-              </span>
-              <div>
-                <p className="eyebrow">Remote Gateway target</p>
-                <h3>Endpoint and auth</h3>
-              </div>
-            </div>
-
-            <div className="settings-form-grid">
-              <label className="settings-field">
-                <span>Gateway URL</span>
-                <input
-                  value={form.remoteGateway.url}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      remoteGateway: {
-                        ...current.remoteGateway,
-                        url: event.target.value,
-                      },
-                    }))
-                  }
-                  placeholder="ws://127.0.0.1:18789 or wss://gateway.example.com"
-                />
-              </label>
-
-              <label className="settings-field">
-                <span>Timeout (ms)</span>
-                <input
-                  type="number"
-                  min={1000}
-                  max={120000}
-                  step={1000}
-                  value={form.remoteGateway.timeoutMs}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      remoteGateway: {
-                        ...current.remoteGateway,
-                        timeoutMs: Number(event.target.value || "10000"),
-                      },
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="settings-field">
-                <span>Token</span>
-                <input
-                  type="password"
-                  value={form.remoteGateway.token}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      remoteGateway: {
-                        ...current.remoteGateway,
-                        token: event.target.value,
-                      },
-                    }))
-                  }
-                  placeholder="Gateway token"
-                />
-              </label>
-
-              <label className="settings-field">
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={form.remoteGateway.password}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      remoteGateway: {
-                        ...current.remoteGateway,
-                        password: event.target.value,
-                      },
-                    }))
-                  }
-                  placeholder="Gateway password"
-                />
-              </label>
-            </div>
-
-            <p className="muted settings-note">
-              Remote mode needs a URL plus an explicit token or password. If you enter just <span className="mono">ip:port</span>, the server will normalize it to <span className="mono">ws://ip:port</span>.
-            </p>
-            {!remoteMode ? (
-              <span className="badge">Remote config is saved but inactive until you switch to Remote Gateway mode.</span>
-            ) : null}
-          </div>
-
-          <div className="card stack soft-contrast">
-            <div className="metric-card-header">
-              <span className="metric-icon-badge tone-amber">
-                <DatabaseIcon className="icon" />
-              </span>
-              <div>
-                <p className="eyebrow">Scope notes</p>
-                <h3>What this changes</h3>
-              </div>
-            </div>
-
-            <div className="kv compact-kv">
-              <span className="muted">Affected pages</span>
-              <span>Sessions, Session Detail, Search, Health</span>
-              <span className="muted">Maintenance</span>
-              <span>Still local-only (cleanup dry-run runs on the local machine)</span>
-              <span className="muted">Writes</span>
-              <span>Still disabled — this only changes read paths</span>
-              <span className="muted">Remote auth</span>
-              <span>Stored locally on this machine inside the Inspector settings file</span>
+      <section className="grid cols-2 settings-two-up">
+        <div className="card stack soft-contrast">
+          <div className="metric-card-header">
+            <span className="metric-icon-badge tone-blue">
+              <MonitorIcon className="icon" />
+            </span>
+            <div>
+              <p className="eyebrow">Remote Gateway target</p>
+              <h3>Endpoint, auth, and activation readiness</h3>
             </div>
           </div>
+
+          <div className="badge-row settings-inline-status">
+            <span className={`badge ${remoteUrlConfigured ? "good" : "warn"}`}>
+              URL {remoteUrlConfigured ? "configured" : "missing"}
+            </span>
+            <span className={`badge ${remoteAuthConfigured ? "good" : "warn"}`}>
+              Auth {remoteAuthConfigured ? "configured" : "missing"}
+            </span>
+            <span className={`badge ${remoteReady ? "good" : "warn"}`}>
+              {remoteReady ? "Ready for remote mode" : "Not ready for remote mode"}
+            </span>
+            {remoteMode ? <span className="badge good">Active mode</span> : null}
+          </div>
+
+          <div className="settings-form-grid">
+            <label className="settings-field">
+              <span>Gateway URL</span>
+              <input
+                value={form.remoteGateway.url}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    remoteGateway: {
+                      ...current.remoteGateway,
+                      url: event.target.value,
+                    },
+                  }))
+                }
+                placeholder="ws://127.0.0.1:18789 or wss://gateway.example.com"
+              />
+            </label>
+
+            <label className="settings-field">
+              <span>Timeout (ms)</span>
+              <input
+                type="number"
+                min={1000}
+                max={120000}
+                step={1000}
+                value={form.remoteGateway.timeoutMs}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    remoteGateway: {
+                      ...current.remoteGateway,
+                      timeoutMs: Number(event.target.value || "10000"),
+                    },
+                  }))
+                }
+              />
+            </label>
+
+            <label className="settings-field">
+              <span>Token</span>
+              <input
+                type="password"
+                value={form.remoteGateway.token}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    remoteGateway: {
+                      ...current.remoteGateway,
+                      token: event.target.value,
+                    },
+                  }))
+                }
+                placeholder="Gateway token"
+              />
+            </label>
+
+            <label className="settings-field">
+              <span>Password</span>
+              <input
+                type="password"
+                value={form.remoteGateway.password}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    remoteGateway: {
+                      ...current.remoteGateway,
+                      password: event.target.value,
+                    },
+                  }))
+                }
+                placeholder="Gateway password"
+              />
+            </label>
+          </div>
+
+          <p className="muted settings-note">
+            Remote mode needs a URL plus an explicit token or password. If you enter just <span className="mono">ip:port</span>, Inspector will normalize it to <span className="mono">ws://ip:port</span> before testing or saving.
+          </p>
+
+          {!remoteMode ? (
+            <span className="badge">Remote config can be filled in ahead of time. It stays dormant until you switch to Remote Gateway mode.</span>
+          ) : null}
+        </div>
+
+        <div className="card stack soft-contrast">
+          <div className="metric-card-header">
+            <span className="metric-icon-badge tone-amber">
+              <DatabaseIcon className="icon" />
+            </span>
+            <div>
+              <p className="eyebrow">Scope notes</p>
+              <h3>What changes, what stays local</h3>
+            </div>
+          </div>
+
+          <div className="settings-scope-list">
+            <div className="settings-scope-row">
+              <strong>Changes immediately</strong>
+              <p className="muted">Sessions, Session Detail, Search, and health endpoints use the configured source plan on the next request.</p>
+            </div>
+            <div className="settings-scope-row">
+              <strong>Still local-only</strong>
+              <p className="muted">Maintenance remains local because cleanup dry-runs execute through the local machine’s OpenClaw CLI.</p>
+            </div>
+            <div className="settings-scope-row">
+              <strong>No writes enabled</strong>
+              <p className="muted">This panel only changes read paths. It does not enable remote mutation or write actions.</p>
+            </div>
+            <div className="settings-scope-row">
+              <strong>Credentials storage</strong>
+              <p className="muted">Remote auth values are stored locally on this machine inside the Inspector settings file, not pushed to the Gateway.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card stack surface-soft">
+        <div className="detail-panel-header">
+          <div>
+            <p className="eyebrow">Common setups</p>
+            <h3>Quick mental models for the source modes</h3>
+          </div>
+          <span className="badge">Recommended defaults</span>
+        </div>
+
+        <div className="grid cols-3 settings-recipes-grid">
+          <RecipeCard
+            title="Same machine"
+            eyebrow="Most common"
+            description="Inspector and OpenClaw run on the same laptop or workstation. Use Auto local unless you want to pin a stricter source."
+          />
+          <RecipeCard
+            title="Local UI + remote server"
+            eyebrow="Remote Gateway"
+            description="Browser/UI runs locally, but OpenClaw Gateway lives on a server. Use Remote Gateway with ws/wss plus token or password."
+          />
+          <RecipeCard
+            title="Design or demo mode"
+            eyebrow="Mock"
+            description="Use Mock when you want stable sample data for UI polish, screenshots, or local development without live dependencies."
+          />
         </div>
       </section>
 
@@ -426,12 +506,37 @@ export function SettingsControlPanel({
           lines={[
             ["Configured", snapshot.runtime.remoteGateway.configured ? "yes" : "no"],
             ["URL", snapshot.runtime.remoteGateway.url ?? "n/a"],
-            ["RPC", snapshot.runtime.remoteGateway.rpcOk === null ? "n/a" : snapshot.runtime.remoteGateway.rpcOk ? "ok" : "down"],
+            [
+              "RPC",
+              snapshot.runtime.remoteGateway.rpcOk === null
+                ? "n/a"
+                : snapshot.runtime.remoteGateway.rpcOk
+                  ? "ok"
+                  : "down",
+            ],
           ]}
           error={snapshot.runtime.remoteGateway.error}
         />
       </section>
     </div>
+  );
+}
+
+function RecipeCard({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <article className="card stack soft-contrast settings-recipe-card">
+      <p className="eyebrow">{eyebrow}</p>
+      <h3>{title}</h3>
+      <p className="muted">{description}</p>
+    </article>
   );
 }
 
