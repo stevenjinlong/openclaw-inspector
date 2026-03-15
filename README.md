@@ -53,7 +53,7 @@ In short:
 
 ## Preview
 
-![OpenClaw Inspector Dashboard](./docs/assets/dashboard.png)
+![OpenClaw Inspector Dashboard](./docs/assets/dashboard-public-latest.png)
 
 ---
 
