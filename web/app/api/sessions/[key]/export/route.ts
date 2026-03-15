@@ -29,7 +29,7 @@ export async function GET(
     return new Response(markdown, {
       headers: {
         "content-type": "text/markdown; charset=utf-8",
-        "content-disposition": `inline; filename="${filename}"`,
+        "content-disposition": `attachment; filename="${filename}"`,
       },
     });
   }
@@ -39,7 +39,7 @@ export async function GET(
   return new Response(JSON.stringify(bundle, null, 2), {
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "content-disposition": `inline; filename="${filename}"`,
+      "content-disposition": `attachment; filename="${filename}"`,
     },
   });
 }

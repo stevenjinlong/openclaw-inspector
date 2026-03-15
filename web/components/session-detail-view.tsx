@@ -57,6 +57,20 @@ export function SessionDetailView({
   const completedToolCalls = session.toolTrace.filter((trace) => trace.status === "completed").length;
   const pendingToolCalls = session.toolTrace.filter((trace) => trace.status === "pending").length;
   const orphanResults = session.toolTrace.filter((trace) => trace.status === "orphan-result").length;
+  const [toolTracePageSize, setToolTracePageSize] = useState<number>(6);
+  const toolTracePageCount = Math.max(
+    1,
+    Math.ceil(filteredToolTrace.length / toolTracePageSize),
+  );
+  const [toolTracePage, setToolTracePage] = useState<number>(1);
+  const pagedToolTrace = useMemo(() => {
+    const startIndex = (toolTracePage - 1) * toolTracePageSize;
+    return filteredToolTrace.slice(startIndex, startIndex + toolTracePageSize);
+  }, [filteredToolTrace, toolTracePage, toolTracePageSize]);
+  const toolTraceStart = filteredToolTrace.length === 0
+    ? 0
+    : (toolTracePage - 1) * toolTracePageSize + 1;
+  const toolTraceEnd = Math.min(toolTracePage * toolTracePageSize, filteredToolTrace.length);
   const transcriptMessageCount = session.transcript.messages.length;
   const userBlocks = session.transcript.messages.filter((message) => message.role === "user").length;
   const assistantBlocks = session.transcript.messages.filter((message) => message.role === "assistant").length;
@@ -115,6 +129,10 @@ export function SessionDetailView({
   useEffect(() => {
     setTranscriptPage((current) => Math.min(Math.max(current, 1), transcriptPageCount));
   }, [transcriptPageCount]);
+
+  useEffect(() => {
+    setToolTracePage((current) => Math.min(Math.max(current, 1), toolTracePageCount));
+  }, [toolTracePageCount]);
 
   return (
     <div className="stack detail-shell">
@@ -314,6 +332,63 @@ export function SessionDetailView({
               </div>
             </div>
 
+            <div className="transcript-toolbar">
+              <div className="badge-row transcript-toolbar-group transcript-toolbar-meta">
+                <span className="badge toolbar-page-badge">
+                  Showing {toolTraceStart}-{toolTraceEnd} of {filteredToolTrace.length}
+                </span>
+                <span className="badge toolbar-page-badge">Page {toolTracePage} / {toolTracePageCount}</span>
+              </div>
+
+              <div className="badge-row transcript-toolbar-group">
+                {[6, 12, 24].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setToolTracePageSize(size)}
+                    className={`detail-filter-chip ${toolTracePageSize === size ? "active" : ""}`}
+                  >
+                    {size} / page
+                  </button>
+                ))}
+              </div>
+
+              <div className="badge-row transcript-toolbar-group transcript-toolbar-pagination">
+                <button
+                  type="button"
+                  onClick={() => setToolTracePage(1)}
+                  className="detail-filter-chip"
+                  disabled={toolTracePage === 1}
+                >
+                  « First
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setToolTracePage((current) => Math.max(1, current - 1))}
+                  className="detail-filter-chip"
+                  disabled={toolTracePage === 1}
+                >
+                  ← Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setToolTracePage((current) => Math.min(toolTracePageCount, current + 1))}
+                  className="detail-filter-chip"
+                  disabled={toolTracePage === toolTracePageCount}
+                >
+                  Next →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setToolTracePage(toolTracePageCount)}
+                  className="detail-filter-chip"
+                  disabled={toolTracePage === toolTracePageCount}
+                >
+                  Latest »
+                </button>
+              </div>
+            </div>
+
             <div className="list">
               {filteredToolTrace.length === 0 ? (
                 <div className="empty-state detail-empty-state">
@@ -321,7 +396,7 @@ export function SessionDetailView({
                   <p className="muted">Try switching status or tool filters.</p>
                 </div>
               ) : (
-                filteredToolTrace.map((trace) => (
+                pagedToolTrace.map((trace) => (
                   <article key={`${trace.toolName}-${trace.index}`} className="tool-trace-card polished-trace-card">
                     <div className="trace-card-top">
                       <div className="trace-card-title-block">
@@ -489,7 +564,11 @@ export function SessionDetailView({
                 <p className="muted">
                   Includes normalized session detail, tool traces, transcript, metadata, and summary counts.
                 </p>
-                <a href={`${session.apiPath}/export?format=json`} className="primary-action export-button">
+                <a
+                  href={`${session.apiPath}/export?format=json`}
+                  className="primary-action export-button"
+                  download
+                >
                   Export JSON bundle
                 </a>
               </section>
@@ -500,7 +579,11 @@ export function SessionDetailView({
                 <p className="muted">
                   Best for GitHub issues, chats, notes, and quick sharing with humans.
                 </p>
-                <a href={`${session.apiPath}/export?format=md`} className="secondary-action export-button">
+                <a
+                  href={`${session.apiPath}/export?format=md`}
+                  className="secondary-action export-button"
+                  download
+                >
                   Export Markdown
                 </a>
               </section>
