@@ -47,6 +47,21 @@ export interface TranscriptEntry {
   toolName?: string;
 }
 
+export interface ToolTraceEntry {
+  index: number;
+  toolName: string;
+  callEntryIndex: number | null;
+  resultEntryIndex: number | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  status: "completed" | "pending" | "orphan-result";
+  input: string | null;
+  output: string | null;
+  inputPreview: string | null;
+  outputPreview: string | null;
+  outputChars: number | null;
+}
+
 export interface SessionSummaryRecord {
   key: string;
   slug: string;
@@ -72,6 +87,7 @@ export interface SessionDetailRecord extends SessionSummaryRecord {
     path: string | null;
     messages: TranscriptEntry[];
   };
+  toolTrace: ToolTraceEntry[];
 }
 
 export interface ResponseMeta {
@@ -262,6 +278,7 @@ export function normalizeRuntimeSessionDetail(options: {
   hasCompaction?: boolean;
 }): SessionDetailRecord {
   const summary = normalizeRuntimeSessionSummary(options.session, options.source);
+  const transcriptMessages = normalizeTranscriptMessages(options.transcriptMessages);
 
   return {
     ...summary,
@@ -272,8 +289,9 @@ export function normalizeRuntimeSessionDetail(options: {
     transcript: {
       source: options.transcriptSource,
       path: options.transcriptPath ?? summary.transcriptPath,
-      messages: normalizeTranscriptMessages(options.transcriptMessages),
+      messages: transcriptMessages,
     },
+    toolTrace: buildToolTrace(transcriptMessages),
   };
 }
 
@@ -316,22 +334,25 @@ export function normalizeMockSessionDetail(
   session: MockSessionSummary,
 ): SessionDetailRecord {
   const summary = normalizeMockSessionSummary(session);
+  const transcriptMessages = session.messages.map((message, index) => ({
+    index,
+    role: message.role,
+    title: message.title,
+    content: message.content,
+    messageType: message.role,
+    isCollapsedDefault: message.role === "toolResult",
+    timestamp: null,
+    toolName: inferToolNameFromTitle(message.title),
+  })) satisfies TranscriptEntry[];
 
   return {
     ...summary,
     transcript: {
       source: "mock",
       path: session.transcriptPath,
-      messages: session.messages.map((message, index) => ({
-        index,
-        role: message.role,
-        title: message.title,
-        content: message.content,
-        messageType: message.role,
-        isCollapsedDefault: message.role === "toolResult",
-        timestamp: null,
-      })),
+      messages: transcriptMessages,
     },
+    toolTrace: buildToolTrace(transcriptMessages),
   };
 }
 
@@ -436,6 +457,74 @@ export function normalizeTranscriptMessages(
   });
 
   return entries;
+}
+
+export function buildToolTrace(messages: TranscriptEntry[]): ToolTraceEntry[] {
+  const traces: ToolTraceEntry[] = [];
+  const openCalls: ToolTraceEntry[] = [];
+
+  messages.forEach((message) => {
+    if (message.messageType === "toolCall") {
+      const trace: ToolTraceEntry = {
+        index: traces.length,
+        toolName: message.toolName ?? inferToolNameFromTitle(message.title),
+        callEntryIndex: message.index,
+        resultEntryIndex: null,
+        startedAt: message.timestamp,
+        finishedAt: null,
+        status: "pending",
+        input: message.content,
+        output: null,
+        inputPreview: createPreview(message.content),
+        outputPreview: null,
+        outputChars: null,
+      };
+
+      traces.push(trace);
+      openCalls.push(trace);
+      return;
+    }
+
+    if (message.messageType !== "toolResult") {
+      return;
+    }
+
+    const toolName = message.toolName ?? inferToolNameFromTitle(message.title);
+    const matchIndex = openCalls.findIndex((candidate) => candidate.toolName === toolName);
+    const fallbackIndex = matchIndex === -1 ? 0 : matchIndex;
+    const matchedCall = openCalls[fallbackIndex];
+
+    if (!matchedCall) {
+      traces.push({
+        index: traces.length,
+        toolName,
+        callEntryIndex: null,
+        resultEntryIndex: message.index,
+        startedAt: null,
+        finishedAt: message.timestamp,
+        status: "orphan-result",
+        input: null,
+        output: message.content,
+        inputPreview: null,
+        outputPreview: createPreview(message.content),
+        outputChars: message.content.length,
+      });
+      return;
+    }
+
+    matchedCall.resultEntryIndex = message.index;
+    matchedCall.finishedAt = message.timestamp;
+    matchedCall.status = "completed";
+    matchedCall.output = message.content;
+    matchedCall.outputPreview = createPreview(message.content);
+    matchedCall.outputChars = message.content.length;
+    openCalls.splice(fallbackIndex, 1);
+  });
+
+  return traces.map((trace, index) => ({
+    ...trace,
+    index,
+  }));
 }
 
 export function sortSessionRecordsByUpdatedAt(
@@ -613,6 +702,36 @@ function titleForTextMessage(
   }
 
   return "System message";
+}
+
+function inferToolNameFromTitle(title: string): string {
+  const separatorMatch = title.match(/[·:]\s*(.+)$/);
+
+  if (separatorMatch?.[1]) {
+    return separatorMatch[1].trim();
+  }
+
+  const parenMatch = title.match(/^([^(]+)\(/);
+
+  if (parenMatch?.[1]) {
+    return parenMatch[1].trim();
+  }
+
+  return title.trim() || "unknown";
+}
+
+function createPreview(value: string | null, maxChars = 220): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const compact = value.replace(/\s+/g, " ").trim();
+
+  if (compact.length <= maxChars) {
+    return compact;
+  }
+
+  return `${compact.slice(0, maxChars - 1)}…`;
 }
 
 function prettyJson(value: unknown): string {
