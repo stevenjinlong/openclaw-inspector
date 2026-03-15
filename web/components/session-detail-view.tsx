@@ -31,9 +31,13 @@ export function SessionDetailView({
   const [toolFilter, setToolFilter] = useState(initialToolFilter);
 
   const toolOptions = useMemo(
-    () => Array.from(new Set(session.toolTrace.map((trace) => trace.toolName))).sort((left, right) => left.localeCompare(right)),
+    () =>
+      Array.from(new Set(session.toolTrace.map((trace) => trace.toolName))).sort((left, right) =>
+        left.localeCompare(right),
+      ),
     [session.toolTrace],
   );
+
   const filteredToolTrace = useMemo(
     () =>
       session.toolTrace.filter((trace) => {
@@ -94,53 +98,67 @@ export function SessionDetailView({
   }, [currentTab, statusFilter, toolFilter]);
 
   return (
-    <div className="stack">
+    <div className="stack detail-shell">
       <div className="page-title">
         <div>
           <p className="eyebrow">Session detail</p>
           <h2>{session.displayName}</h2>
-          <p className="muted">
-            Read-only inspector view for one session. This page now keeps tabs
-            and tool filters on the client so switching feels immediate.
+          <p className="muted detail-subtitle">
+            A read-only inspection surface for one session, with tabs and tool filters kept on the client for instant interaction.
           </p>
         </div>
-        <Link href="/sessions" className="badge">
+        <Link href="/sessions" className="secondary-action">
           Back to sessions
         </Link>
       </div>
 
-      <section className="card stack">
-        <div className="badge-row">
-          <span className="badge">{session.kind}</span>
-          <span className="badge">{session.channel}</span>
-          <span className="badge">{session.model}</span>
-          <span className="badge">{meta.adapter.label}</span>
-          <span className="badge">transcript: {session.transcript.source}</span>
-          {session.status.hasCompaction ? <span className="badge warn">compacted</span> : null}
-          {session.status.hasSubagent ? <span className="badge good">subagent</span> : null}
-          {session.status.abortedLastRun ? <span className="badge bad">aborted</span> : null}
+      <section className="card detail-hero surface-soft">
+        <div className="detail-hero-copy stack">
+          <div className="badge-row">
+            <span className="badge">{session.kind}</span>
+            <span className="badge">{session.channel}</span>
+            <span className="badge">{session.model}</span>
+            <span className="badge">{meta.adapter.label}</span>
+            <span className="badge">transcript: {session.transcript.source}</span>
+            {session.status.hasCompaction ? <span className="badge warn">compacted</span> : null}
+            {session.status.hasSubagent ? <span className="badge good">subagent</span> : null}
+            {session.status.abortedLastRun ? <span className="badge bad">aborted</span> : null}
+          </div>
+
+          <div className="grid cols-3">
+            <div className="summary-tile accent compact-summary">
+              <span className="muted">Context</span>
+              <strong>{formatTokenCount(session.tokens.context)}</strong>
+            </div>
+            <div className="summary-tile compact-summary">
+              <span className="muted">Total tokens</span>
+              <strong>{formatTokenCount(session.tokens.total)}</strong>
+            </div>
+            <div className="summary-tile warm compact-summary">
+              <span className="muted">Tool traces</span>
+              <strong>{session.toolTrace.length}</strong>
+            </div>
+          </div>
         </div>
 
-        <div className="kv">
-          <span className="muted">Session key</span>
-          <span className="mono">{session.key}</span>
-          <span className="muted">API path</span>
-          <span className="mono">{session.apiPath}</span>
-          <span className="muted">Updated</span>
-          <span>{session.updatedAt}</span>
-          <span className="muted">Agent</span>
-          <span>{session.agentId ?? "unknown"}</span>
-          <span className="muted">Context tokens</span>
-          <span>{formatTokenCount(session.tokens.context)}</span>
-          <span className="muted">Total tokens</span>
-          <span>{formatTokenCount(session.tokens.total)}</span>
-          <span className="muted">Transcript path</span>
-          <span className="mono">{session.transcript.path ?? "unavailable"}</span>
+        <div className="detail-facts-card">
+          <div className="detail-facts-grid">
+            <span className="muted">Session key</span>
+            <span className="mono">{session.key}</span>
+            <span className="muted">API path</span>
+            <span className="mono">{session.apiPath}</span>
+            <span className="muted">Updated</span>
+            <span>{session.updatedAt}</span>
+            <span className="muted">Agent</span>
+            <span>{session.agentId ?? "unknown"}</span>
+            <span className="muted">Transcript path</span>
+            <span className="mono">{session.transcript.path ?? "unavailable"}</span>
+          </div>
         </div>
       </section>
 
       <div className="grid cols-2">
-        <section className="card stack">
+        <section className="card stack surface-soft">
           <div>
             <p className="eyebrow">Adapter contract</p>
             <h3>Local-first, read-only</h3>
@@ -153,7 +171,7 @@ export function SessionDetailView({
           </ul>
         </section>
 
-        <section className="card stack">
+        <section className="card stack surface-soft">
           <div>
             <p className="eyebrow">Source health</p>
             <h3>Adapter + transcript visibility</h3>
@@ -180,33 +198,45 @@ export function SessionDetailView({
         </section>
       </div>
 
-      <section className="card stack">
-        <div className="tab-row">
-          {(["transcript", "tools", "stats", "export"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setCurrentTab(tab)}
-              className={`tab-link ${currentTab === tab ? "active" : ""}`}
-            >
-              {tab === "tools" ? "Tool trace" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
+      <section className="card stack detail-tabs-shell">
+        <div className="detail-tab-header">
+          <div>
+            <p className="eyebrow">View</p>
+            <h3>Switch between transcript, traces, diagnostics, and export</h3>
+          </div>
+          <div className="tab-row detail-tab-row">
+            {([
+              ["transcript", "Transcript"],
+              ["tools", "Tool trace"],
+              ["stats", "Stats"],
+              ["export", "Export"],
+            ] as const).map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setCurrentTab(tab)}
+                className={`detail-tab-pill ${currentTab === tab ? "active" : ""}`}
+              >
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {currentTab === "tools" ? (
           <div className="stack">
-            <div>
-              <p className="eyebrow">Tools</p>
-              <h3>Tool trace</h3>
-              <p className="muted">
-                These controls are now client-side, so filtering and tab
-                switching should feel instant.
-              </p>
+            <div className="detail-panel-header">
+              <div>
+                <p className="eyebrow">Tools</p>
+                <h3>Tool trace</h3>
+                <p className="muted">
+                  Pair tool calls with their results, then filter down to the exact trace you care about.
+                </p>
+              </div>
             </div>
 
             <div className="grid cols-2">
-              <section className="card stack">
+              <section className="card stack surface-soft">
                 <p className="eyebrow">Status filter</p>
                 <div className="badge-row">
                   {(["all", "completed", "pending", "orphan-result"] as const).map((status) => (
@@ -214,7 +244,7 @@ export function SessionDetailView({
                       key={status}
                       type="button"
                       onClick={() => setStatusFilter(status)}
-                      className={`tab-link ${statusFilter === status ? "active" : ""}`}
+                      className={`detail-filter-chip ${statusFilter === status ? "active" : ""}`}
                     >
                       {statusLabel(status)}
                     </button>
@@ -222,13 +252,13 @@ export function SessionDetailView({
                 </div>
               </section>
 
-              <section className="card stack">
+              <section className="card stack surface-soft">
                 <p className="eyebrow">Tool filter</p>
                 <div className="badge-row">
                   <button
                     type="button"
                     onClick={() => setToolFilter("all")}
-                    className={`tab-link ${toolFilter === "all" ? "active" : ""}`}
+                    className={`detail-filter-chip ${toolFilter === "all" ? "active" : ""}`}
                   >
                     All tools
                   </button>
@@ -237,7 +267,7 @@ export function SessionDetailView({
                       key={toolName}
                       type="button"
                       onClick={() => setToolFilter(toolName)}
-                      className={`tab-link ${toolFilter === toolName ? "active" : ""}`}
+                      className={`detail-filter-chip ${toolFilter === toolName ? "active" : ""}`}
                     >
                       {toolName}
                     </button>
@@ -246,59 +276,65 @@ export function SessionDetailView({
               </section>
             </div>
 
-            <div className="grid cols-2">
-              <section className="card stack">
-                <p className="eyebrow">Completed</p>
-                <div className="metric">{completedToolCalls}</div>
-                <p className="muted">Calls with a matched tool result.</p>
-              </section>
-              <section className="card stack">
-                <p className="eyebrow">Waiting for result</p>
-                <div className="metric">{pendingToolCalls}</div>
-                <p className="muted">Tool calls seen without a result yet.</p>
-              </section>
-              <section className="card stack">
-                <p className="eyebrow">Result-only</p>
-                <div className="metric">{orphanResults}</div>
-                <p className="muted">Tool results that could not be matched to a call.</p>
-              </section>
-              <section className="card stack">
-                <p className="eyebrow">Visible</p>
-                <div className="metric">{filteredToolTrace.length}</div>
-                <p className="muted">Tool traces matching the current filters.</p>
-              </section>
+            <div className="grid cols-4 responsive-grid">
+              <div className="stats-tile soft-contrast">
+                <span className="muted">Completed</span>
+                <strong>{completedToolCalls}</strong>
+              </div>
+              <div className="stats-tile soft-contrast">
+                <span className="muted">Waiting</span>
+                <strong>{pendingToolCalls}</strong>
+              </div>
+              <div className="stats-tile soft-contrast">
+                <span className="muted">Result-only</span>
+                <strong>{orphanResults}</strong>
+              </div>
+              <div className="stats-tile soft-contrast">
+                <span className="muted">Visible</span>
+                <strong>{filteredToolTrace.length}</strong>
+              </div>
             </div>
 
             <div className="list">
               {filteredToolTrace.length === 0 ? (
-                <div className="empty-state">
+                <div className="empty-state detail-empty-state">
                   <h3>No tool traces match the current filters</h3>
                   <p className="muted">Try switching status or tool filters.</p>
                 </div>
               ) : (
                 filteredToolTrace.map((trace) => (
-                  <article key={`${trace.toolName}-${trace.index}`} className="tool-trace-card">
-                    <div className="badge-row">
-                      <span className="badge">#{trace.index + 1}</span>
-                      <span className="badge">{trace.toolName}</span>
-                      <span className={`badge ${statusTone(trace.status)}`}>
-                        {statusLabel(trace.status)}
-                      </span>
-                      {trace.startedAt ? <span className="badge">start: {trace.startedAt}</span> : null}
-                      {trace.finishedAt ? <span className="badge">finish: {trace.finishedAt}</span> : null}
+                  <article key={`${trace.toolName}-${trace.index}`} className="tool-trace-card polished-trace-card">
+                    <div className="trace-card-top">
+                      <div className="trace-card-title-block">
+                        <p className="eyebrow">Trace #{trace.index + 1}</p>
+                        <h3>{trace.toolName}</h3>
+                      </div>
+                      <div className="badge-row">
+                        <span className={`badge ${statusTone(trace.status)}`}>
+                          {statusLabel(trace.status)}
+                        </span>
+                        {trace.startedAt ? <span className="badge">start: {trace.startedAt}</span> : null}
+                        {trace.finishedAt ? <span className="badge">finish: {trace.finishedAt}</span> : null}
+                      </div>
                     </div>
 
-                    <div className="kv compact-kv">
-                      <span className="muted">Call entry</span>
-                      <span>{trace.callEntryIndex !== null ? `#${trace.callEntryIndex + 1}` : "n/a"}</span>
-                      <span className="muted">Result entry</span>
-                      <span>{trace.resultEntryIndex !== null ? `#${trace.resultEntryIndex + 1}` : "n/a"}</span>
-                      <span className="muted">Output size</span>
-                      <span>{trace.outputChars !== null ? `${trace.outputChars.toLocaleString()} chars` : "n/a"}</span>
+                    <div className="trace-meta-grid">
+                      <div className="stats-tile soft-contrast">
+                        <span className="muted">Call entry</span>
+                        <strong>{trace.callEntryIndex !== null ? `#${trace.callEntryIndex + 1}` : "n/a"}</strong>
+                      </div>
+                      <div className="stats-tile soft-contrast">
+                        <span className="muted">Result entry</span>
+                        <strong>{trace.resultEntryIndex !== null ? `#${trace.resultEntryIndex + 1}` : "n/a"}</strong>
+                      </div>
+                      <div className="stats-tile soft-contrast">
+                        <span className="muted">Output size</span>
+                        <strong>{trace.outputChars !== null ? `${trace.outputChars.toLocaleString()} chars` : "n/a"}</strong>
+                      </div>
                     </div>
 
                     <div className="grid cols-2">
-                      <section className="trace-pane">
+                      <section className="trace-pane polished-pane">
                         <p className="eyebrow">Input preview</p>
                         <p className="muted">{trace.inputPreview ?? "No captured tool-call payload."}</p>
                         {trace.input ? (
@@ -309,7 +345,7 @@ export function SessionDetailView({
                         ) : null}
                       </section>
 
-                      <section className="trace-pane">
+                      <section className="trace-pane polished-pane">
                         <p className="eyebrow">Output preview</p>
                         <p className="muted">{trace.outputPreview ?? "No captured tool-result payload."}</p>
                         {trace.output ? (
@@ -327,75 +363,73 @@ export function SessionDetailView({
           </div>
         ) : currentTab === "stats" ? (
           <div className="stack">
-            <div>
-              <p className="eyebrow">Stats</p>
-              <h3>Session diagnostics</h3>
-              <p className="muted">High-signal metadata for this session.</p>
+            <div className="detail-panel-header">
+              <div>
+                <p className="eyebrow">Stats</p>
+                <h3>Session diagnostics</h3>
+                <p className="muted">
+                  A calmer diagnostic view: model, token profile, transcript composition, and tool distribution.
+                </p>
+              </div>
             </div>
 
             <div className="grid cols-2">
-              <section className="card stack">
+              <section className="card stack surface-soft">
                 <p className="eyebrow">Model + source</p>
-                <div className="kv compact-kv">
-                  <span className="muted">Model</span>
-                  <span>{session.model}</span>
-                  <span className="muted">Provider</span>
-                  <span>{session.modelProvider ?? "unknown"}</span>
-                  <span className="muted">Session source</span>
-                  <span>{session.dataSource}</span>
-                  <span className="muted">Transcript source</span>
-                  <span>{session.transcript.source}</span>
-                  <span className="muted">Token freshness</span>
-                  <span>{session.tokens.fresh ? "fresh" : "stale / partial"}</span>
+                <div className="grid cols-2">
+                  <div className="stats-tile soft-contrast"><span className="muted">Model</span><strong>{session.model}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Provider</span><strong>{session.modelProvider ?? "unknown"}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Session source</span><strong>{session.dataSource}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Transcript source</span><strong>{session.transcript.source}</strong></div>
                 </div>
               </section>
 
-              <section className="card stack">
+              <section className="card stack surface-soft">
                 <p className="eyebrow">Token usage</p>
                 <div className="grid cols-2">
-                  <div className="stats-tile"><span className="muted">Input</span><strong>{formatTokenCount(session.tokens.input)}</strong></div>
-                  <div className="stats-tile"><span className="muted">Output</span><strong>{formatTokenCount(session.tokens.output)}</strong></div>
-                  <div className="stats-tile"><span className="muted">Total</span><strong>{formatTokenCount(session.tokens.total)}</strong></div>
-                  <div className="stats-tile"><span className="muted">Context</span><strong>{formatTokenCount(session.tokens.context)}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Input</span><strong>{formatTokenCount(session.tokens.input)}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Output</span><strong>{formatTokenCount(session.tokens.output)}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Total</span><strong>{formatTokenCount(session.tokens.total)}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Context</span><strong>{formatTokenCount(session.tokens.context)}</strong></div>
                 </div>
               </section>
             </div>
 
             <div className="grid cols-2">
-              <section className="card stack">
+              <section className="card stack surface-soft">
                 <p className="eyebrow">Transcript composition</p>
                 <div className="grid cols-2">
-                  <div className="stats-tile"><span className="muted">All entries</span><strong>{transcriptMessageCount}</strong></div>
-                  <div className="stats-tile"><span className="muted">User blocks</span><strong>{userBlocks}</strong></div>
-                  <div className="stats-tile"><span className="muted">Assistant blocks</span><strong>{assistantBlocks}</strong></div>
-                  <div className="stats-tile"><span className="muted">System blocks</span><strong>{systemBlocks}</strong></div>
-                  <div className="stats-tile"><span className="muted">Tool calls</span><strong>{toolCallBlocks}</strong></div>
-                  <div className="stats-tile"><span className="muted">Tool results</span><strong>{toolResultBlocks}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">All entries</span><strong>{transcriptMessageCount}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">User blocks</span><strong>{userBlocks}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Assistant blocks</span><strong>{assistantBlocks}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">System blocks</span><strong>{systemBlocks}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Tool calls</span><strong>{toolCallBlocks}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Tool results</span><strong>{toolResultBlocks}</strong></div>
                 </div>
               </section>
 
-              <section className="card stack">
+              <section className="card stack surface-soft">
                 <p className="eyebrow">Tool activity</p>
                 <div className="grid cols-2">
-                  <div className="stats-tile"><span className="muted">Distinct tools</span><strong>{toolOptions.length}</strong></div>
-                  <div className="stats-tile"><span className="muted">Traces</span><strong>{session.toolTrace.length}</strong></div>
-                  <div className="stats-tile"><span className="muted">Completed</span><strong>{completedToolCalls}</strong></div>
-                  <div className="stats-tile"><span className="muted">Waiting</span><strong>{pendingToolCalls}</strong></div>
-                  <div className="stats-tile"><span className="muted">Result-only</span><strong>{orphanResults}</strong></div>
-                  <div className="stats-tile"><span className="muted">Compaction</span><strong>{session.status.hasCompaction ? "yes" : "no"}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Distinct tools</span><strong>{toolOptions.length}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Traces</span><strong>{session.toolTrace.length}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Completed</span><strong>{completedToolCalls}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Waiting</span><strong>{pendingToolCalls}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Result-only</span><strong>{orphanResults}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Compaction</span><strong>{session.status.hasCompaction ? "yes" : "no"}</strong></div>
                 </div>
               </section>
             </div>
 
             <div className="grid cols-2">
-              <section className="card stack">
+              <section className="card stack surface-soft">
                 <p className="eyebrow">Top tools</p>
                 {toolCounts.length === 0 ? (
                   <p className="muted">No tool traces captured for this session.</p>
                 ) : (
                   <div className="list">
                     {toolCounts.map((tool) => (
-                      <div key={tool.toolName} className="stats-row">
+                      <div key={tool.toolName} className="stats-row elevated-row">
                         <span>{tool.toolName}</span>
                         <strong>{tool.count}</strong>
                       </div>
@@ -404,52 +438,86 @@ export function SessionDetailView({
                 )}
               </section>
 
-              <section className="card stack">
+              <section className="card stack surface-soft">
                 <p className="eyebrow">Session state</p>
-                <div className="kv compact-kv">
-                  <span className="muted">Kind</span><span>{session.kind}</span>
-                  <span className="muted">Channel</span><span>{session.channel}</span>
-                  <span className="muted">Agent</span><span>{session.agentId ?? "unknown"}</span>
-                  <span className="muted">Aborted</span><span>{session.status.abortedLastRun ? "yes" : "no"}</span>
-                  <span className="muted">Subagent</span><span>{session.status.hasSubagent ? "yes" : "no"}</span>
-                  <span className="muted">Warnings</span><span>{meta.warnings?.length ? meta.warnings.length : 0}</span>
+                <div className="grid cols-2">
+                  <div className="stats-tile soft-contrast"><span className="muted">Kind</span><strong>{session.kind}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Channel</span><strong>{session.channel}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Agent</span><strong>{session.agentId ?? "unknown"}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Aborted</span><strong>{session.status.abortedLastRun ? "yes" : "no"}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Subagent</span><strong>{session.status.hasSubagent ? "yes" : "no"}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Warnings</span><strong>{meta.warnings?.length ? meta.warnings.length : 0}</strong></div>
                 </div>
               </section>
             </div>
           </div>
         ) : currentTab === "export" ? (
           <div className="stack">
-            <div>
-              <p className="eyebrow">Export</p>
-              <h3>Portable debug bundle</h3>
-              <p className="muted">Export the current session as JSON or Markdown.</p>
+            <div className="detail-panel-header">
+              <div>
+                <p className="eyebrow">Export</p>
+                <h3>Portable debug bundle</h3>
+                <p className="muted">
+                  Export the current session as structured JSON or clean Markdown, ready for issues, docs, or sharing with other people.
+                </p>
+              </div>
             </div>
+
             <div className="grid cols-2">
-              <section className="card stack">
-                <p className="eyebrow">Formats</p>
-                <div className="badge-row">
-                  <a href={`${session.apiPath}/export?format=json`} className="export-link">Export JSON bundle</a>
-                  <a href={`${session.apiPath}/export?format=md`} className="export-link">Export Markdown</a>
+              <section className="card stack surface-soft export-panel">
+                <p className="eyebrow">JSON bundle</p>
+                <h3>Structured and machine-friendly</h3>
+                <p className="muted">
+                  Includes normalized session detail, tool traces, transcript, metadata, and summary counts.
+                </p>
+                <a href={`${session.apiPath}/export?format=json`} className="primary-action export-button">
+                  Export JSON bundle
+                </a>
+              </section>
+
+              <section className="card stack surface-soft export-panel">
+                <p className="eyebrow">Markdown</p>
+                <h3>Readable and easy to paste</h3>
+                <p className="muted">
+                  Best for GitHub issues, chats, notes, and quick sharing with humans.
+                </p>
+                <a href={`${session.apiPath}/export?format=md`} className="secondary-action export-button">
+                  Export Markdown
+                </a>
+              </section>
+            </div>
+
+            <div className="grid cols-2">
+              <section className="card stack surface-soft">
+                <p className="eyebrow">Bundle contents</p>
+                <div className="grid cols-2">
+                  <div className="stats-tile soft-contrast"><span className="muted">Transcript entries</span><strong>{transcriptMessageCount}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Tool traces</span><strong>{session.toolTrace.length}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Warnings</span><strong>{meta.warnings?.length ? meta.warnings.length : 0}</strong></div>
+                  <div className="stats-tile soft-contrast"><span className="muted">Sources</span><strong>{session.dataSource} / {session.transcript.source}</strong></div>
                 </div>
               </section>
-              <section className="card stack">
-                <p className="eyebrow">Bundle contents</p>
-                <div className="kv compact-kv">
-                  <span className="muted">Transcript entries</span><span>{transcriptMessageCount}</span>
-                  <span className="muted">Tool traces</span><span>{session.toolTrace.length}</span>
-                  <span className="muted">Warnings</span><span>{meta.warnings?.length ? meta.warnings.length : 0}</span>
-                  <span className="muted">Session source</span><span>{session.dataSource}</span>
-                  <span className="muted">Transcript source</span><span>{session.transcript.source}</span>
-                </div>
+
+              <section className="card stack surface-soft">
+                <p className="eyebrow">Recommended use</p>
+                <ul className="muted">
+                  <li>Use JSON when you want structure, reprocessing, or future import.</li>
+                  <li>Use Markdown when you want something presentable immediately.</li>
+                  <li>Both formats include transcript, tool traces, and summary metadata.</li>
+                </ul>
               </section>
             </div>
           </div>
         ) : (
           <div className="stack">
-            <div>
-              <p className="eyebrow">Transcript</p>
-              <h3>Message flow</h3>
-              <p className="muted">Tool calls and tool results are surfaced as separate transcript entries.</p>
+            <div className="detail-panel-header">
+              <div>
+                <p className="eyebrow">Transcript</p>
+                <h3>Message flow</h3>
+                <p className="muted">
+                  Inspect the full turn sequence, then jump into tool traces when a block deserves a closer look.
+                </p>
+              </div>
             </div>
 
             <div className="list">
@@ -466,7 +534,7 @@ export function SessionDetailView({
                           setCurrentTab("tools");
                           setToolFilter(message.toolName ?? "all");
                         }}
-                        className="tab-link"
+                        className="detail-filter-chip"
                       >
                         {message.toolName}
                       </button>
