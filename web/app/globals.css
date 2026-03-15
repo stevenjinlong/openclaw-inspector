@@ -255,6 +255,21 @@ h1, h2, h3, h4, p {
   min-height: 0;
 }
 
+.hero-card-horizontal {
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  align-items: stretch;
+}
+
+.hero-main {
+  justify-content: center;
+}
+
+.hero-side {
+  justify-content: space-between;
+  gap: 18px;
+  padding-left: 8px;
+}
+
 @media (prefers-color-scheme: dark) {
   .hero-card {
     background:
@@ -289,12 +304,24 @@ h1, h2, h3, h4, p {
   font-size: 15px;
 }
 
-.hero-inline-stats strong {
+.hero-inline-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 28px;
+}
+
+.hero-inline-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hero-inline-stats strong,
+.hero-inline-stat strong {
   color: var(--text);
-  font-size: 24px;
+  font-size: 32px;
   line-height: 1;
-  letter-spacing: -0.04em;
-  margin-right: 6px;
+  letter-spacing: -0.05em;
 }
 
 .hero-actions {
@@ -836,11 +863,13 @@ li + li {
   }
 
   .hero-card,
-  .detail-hero {
+  .detail-hero,
+  .hero-card-horizontal {
     grid-template-columns: 1fr;
   }
 
   .hero-summary,
+  .hero-inline-stats-grid,
   .grid.cols-4,
   .responsive-grid,
   .trace-meta-grid {
@@ -865,10 +894,15 @@ li + li {
   .grid.cols-2,
   .grid.cols-3,
   .hero-summary,
+  .hero-inline-stats-grid,
   .grid.cols-4,
   .responsive-grid,
   .trace-meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hero-side {
+    padding-left: 0;
   }
 
   .page-title,

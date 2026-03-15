@@ -52,8 +52,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="stack dashboard-shell">
-      <section className="hero-card hero-card-minimal">
-        <div className="hero-copy stack">
+      <section className="hero-card hero-card-minimal hero-card-horizontal">
+        <div className="hero-main stack">
           <p className="eyebrow">OpenClaw Inspector</p>
           <h2 className="hero-title">
             A cleaner control plane for sessions, traces, and maintenance.
@@ -62,12 +62,26 @@ export default async function DashboardPage() {
             Live local OpenClaw data, shaped into a calmer dashboard you can
             actually scan in seconds.
           </p>
+        </div>
 
-          <div className="hero-inline-stats">
-            <span><strong>{totalSessions}</strong> sessions</span>
-            <span><strong>{distinctAgents}</strong> agents</span>
-            <span><strong>{distinctChannels}</strong> channels</span>
-            <span><strong>{attentionSessions.length}</strong> need attention</span>
+        <div className="hero-side stack">
+          <div className="hero-inline-stats hero-inline-stats-grid">
+            <div className="hero-inline-stat">
+              <strong>{totalSessions}</strong>
+              <span className="muted">sessions</span>
+            </div>
+            <div className="hero-inline-stat">
+              <strong>{distinctAgents}</strong>
+              <span className="muted">agents</span>
+            </div>
+            <div className="hero-inline-stat">
+              <strong>{distinctChannels}</strong>
+              <span className="muted">channels</span>
+            </div>
+            <div className="hero-inline-stat">
+              <strong>{attentionSessions.length}</strong>
+              <span className="muted">need attention</span>
+            </div>
           </div>
 
           <div className="hero-actions badge-row">
