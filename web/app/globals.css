@@ -1089,6 +1089,27 @@ h1, h2, h3, h4, p {
   margin-bottom: 4px;
 }
 
+.search-pagination-toolbar {
+  border-color: rgba(37, 99, 235, 0.18);
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.08);
+}
+
+.search-page-chip {
+  min-height: 40px;
+  padding: 10px 16px;
+  border-width: 1px;
+  border-color: rgba(37, 99, 235, 0.18);
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(219, 234, 254, 0.24) 100%);
+  box-shadow: var(--shadow-sm);
+  font-weight: 700;
+}
+
+.search-page-chip.active,
+.search-page-chip:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #1d4ed8;
+}
+
 .transcript-toolbar-meta {
   gap: 8px;
 }

@@ -73,7 +73,7 @@ export default async function SearchPage({
           ) : null}
         </form>
 
-        <div className="transcript-toolbar sessions-toolbar">
+        <div className="transcript-toolbar sessions-toolbar search-pagination-toolbar">
           <div className="badge-row transcript-toolbar-group transcript-toolbar-meta">
             <span className="badge toolbar-page-badge">
               Showing {startIndex}-{endIndex} of {response.meta.totalMatches}
@@ -84,15 +84,16 @@ export default async function SearchPage({
           </div>
 
           <div className="badge-row transcript-toolbar-group transcript-toolbar-pagination">
-            <PageLink q={rawQuery} page={1} disabled={response.meta.page === 1}>
+            <PageLink q={rawQuery} page={1} currentPage={response.meta.page} disabled={response.meta.page === 1}>
               « First
             </PageLink>
-            <PageLink q={rawQuery} page={Math.max(1, response.meta.page - 1)} disabled={response.meta.page === 1}>
+            <PageLink q={rawQuery} page={Math.max(1, response.meta.page - 1)} currentPage={response.meta.page} disabled={response.meta.page === 1}>
               ← Previous
             </PageLink>
             <PageLink
               q={rawQuery}
               page={Math.min(response.meta.pageCount, response.meta.page + 1)}
+              currentPage={response.meta.page}
               disabled={response.meta.page === response.meta.pageCount}
             >
               Next →
@@ -100,6 +101,7 @@ export default async function SearchPage({
             <PageLink
               q={rawQuery}
               page={response.meta.pageCount}
+              currentPage={response.meta.page}
               disabled={response.meta.page === response.meta.pageCount}
             >
               Latest »
@@ -177,16 +179,18 @@ export default async function SearchPage({
 function PageLink({
   q,
   page,
+  currentPage,
   disabled,
   children,
 }: {
   q: string;
   page: number;
+  currentPage: number;
   disabled: boolean;
   children: React.ReactNode;
 }) {
   if (disabled) {
-    return <span className="detail-filter-chip" aria-disabled="true">{children}</span>;
+    return <span className="detail-filter-chip search-page-chip" aria-disabled="true">{children}</span>;
   }
 
   const params = new URLSearchParams();
@@ -195,8 +199,15 @@ function PageLink({
   }
   params.set("page", String(page));
 
+  const nextHref = `/search?${params.toString()}`;
+
   return (
-    <Link href={`/search?${params.toString()}`} className="detail-filter-chip">
+    <Link
+      href={nextHref}
+      scroll={false}
+      prefetch={false}
+      className={`detail-filter-chip search-page-chip ${page === currentPage ? "active" : ""}`}
+    >
       {children}
     </Link>
   );
