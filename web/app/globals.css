@@ -288,11 +288,11 @@ h1, h2, h3, h4, p {
   font-size: clamp(30px, 5vw, 48px);
   line-height: 1.02;
   letter-spacing: -0.04em;
-  max-width: 14ch;
+  max-width: none;
 }
 
 .hero-subtitle {
-  max-width: 56ch;
+  max-width: 72ch;
   font-size: 15px;
   line-height: 1.6;
 }
