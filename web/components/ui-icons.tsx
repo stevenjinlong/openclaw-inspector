@@ -145,3 +145,32 @@ export function SearchIcon(props: IconProps) {
     </SvgIcon>
   );
 }
+
+export function ClockIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5v5l3 1.8" />
+    </SvgIcon>
+  );
+}
+
+export function PauseCircleIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M10 9v6" />
+      <path d="M14 9v6" />
+    </SvgIcon>
+  );
+}
+
+export function AlertTriangleIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M12 4.5 20 18.5H4L12 4.5Z" />
+      <path d="M12 9v4.5" />
+      <circle cx="12" cy="16.2" r="0.7" fill="currentColor" stroke="none" />
+    </SvgIcon>
+  );
+}

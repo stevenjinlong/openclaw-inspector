@@ -9,7 +9,13 @@ import {
   type SessionKind,
   type SessionSummaryRecord,
 } from "../lib/normalizers";
-import { ArrowRightIcon, SearchIcon } from "./ui-icons";
+import {
+  ActivityIcon,
+  ArrowRightIcon,
+  ClockIcon,
+  PauseCircleIcon,
+  SearchIcon,
+} from "./ui-icons";
 
 type KindFilter = "all" | SessionKind;
 type ChannelFilter = "all" | string;
@@ -355,8 +361,12 @@ export function SessionsExplorer({
                 <div className="session-main">
                   <div className="session-main-head">
                     <p className={`session-channel-label ${channelToneClass(session.channel)}`}>
-                      {session.channel}
-                      <span className={`session-status-pill summary-status-${status.code}`}>
+                      <span>{session.channel}</span>
+                      <span
+                        className={`session-status-pill summary-status-${status.code}`}
+                        title={status.description}
+                      >
+                        <status.icon className="icon icon-sm" />
                         {status.label}
                       </span>
                     </p>
@@ -410,19 +420,39 @@ export function SessionsExplorer({
 function classifySummaryStatus(
   session: SessionSummaryRecord,
   nowMs: number,
-): { code: "active" | "recent" | "idle"; label: string } {
+): {
+  code: "active" | "recent" | "idle";
+  label: string;
+  description: string;
+  icon: typeof PauseCircleIcon;
+} {
   const updatedAtMs = session.updatedAtMs ?? Date.now();
   const deltaSeconds = Math.max(0, (nowMs - updatedAtMs) / 1000);
 
   if (deltaSeconds <= 15) {
-    return { code: "active", label: "ACTIVE" };
+    return {
+      code: "active",
+      label: "ACTIVE",
+      description: "This session was updated in the last 15 seconds.",
+      icon: ActivityIcon,
+    };
   }
 
   if (deltaSeconds <= 300) {
-    return { code: "recent", label: "RECENT" };
+    return {
+      code: "recent",
+      label: "RECENT",
+      description: "This session was updated in the last 5 minutes.",
+      icon: ClockIcon,
+    };
   }
 
-  return { code: "idle", label: "IDLE" };
+  return {
+    code: "idle",
+    label: "IDLE",
+    description: "No recent updates were observed for this session.",
+    icon: PauseCircleIcon,
+  };
 }
 
 function channelToneClass(channel: string): string {

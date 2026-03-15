@@ -9,7 +9,14 @@ import {
   type SessionDetailRecord,
   type ToolTraceEntry,
 } from "../lib/normalizers";
-import { ArrowLeftIcon, SessionsIcon } from "./ui-icons";
+import {
+  ActivityIcon,
+  AlertTriangleIcon,
+  ArrowLeftIcon,
+  MaintenanceIcon,
+  PauseCircleIcon,
+  SessionsIcon,
+} from "./ui-icons";
 
 type DetailTab = "transcript" | "tools" | "stats" | "export";
 type LiveStatusCode = "idle" | "llm-running" | "tools-running" | "possibly-stuck";
@@ -204,9 +211,20 @@ export function SessionDetailView({
       <section className="card detail-hero surface-soft">
         <div className="detail-hero-copy stack">
           <div className="badge-row">
-            <span className={`badge status-badge status-${liveStatus?.statusCode ?? "idle"}`}>
-              {liveStatus?.label ?? "IDLE"}
-            </span>
+            {(() => {
+              const statusMeta = getLiveStatusMeta(liveStatus?.statusCode ?? "idle");
+              const StatusIcon = statusMeta.icon;
+
+              return (
+                <span
+                  className={`badge status-badge status-${liveStatus?.statusCode ?? "idle"}`}
+                  title={liveStatus?.reason ?? statusMeta.description}
+                >
+                  <StatusIcon className="icon icon-sm" />
+                  {liveStatus?.label ?? "IDLE"}
+                </span>
+              );
+            })()}
             <span className="badge">{session.kind}</span>
             <span className="badge">{session.channel}</span>
             <span className="badge">{session.model}</span>
@@ -766,6 +784,37 @@ export function SessionDetailView({
       </section>
     </div>
   );
+}
+
+function getLiveStatusMeta(statusCode: LiveStatusCode): {
+  icon: typeof PauseCircleIcon;
+  description: string;
+} {
+  if (statusCode === "llm-running") {
+    return {
+      icon: ActivityIcon,
+      description: "Model is likely generating or waiting to emit the assistant response.",
+    };
+  }
+
+  if (statusCode === "tools-running") {
+    return {
+      icon: MaintenanceIcon,
+      description: "The session appears to have pending tool calls in flight.",
+    };
+  }
+
+  if (statusCode === "possibly-stuck") {
+    return {
+      icon: AlertTriangleIcon,
+      description: "The session has been waiting unusually long for a response or tool result.",
+    };
+  }
+
+  return {
+    icon: PauseCircleIcon,
+    description: "No recent in-flight work detected for this session.",
+  };
 }
 
 function statusLabel(status: ToolTraceStatusFilter): string {
