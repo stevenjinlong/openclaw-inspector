@@ -5,6 +5,10 @@
 <h1 align="center">OpenClaw Inspector</h1>
 
 <p align="center">
+  <a href="./README.md">English</a> · <a href="./README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
   <strong>A local-first observability dashboard for OpenClaw.</strong>
 </p>
 
